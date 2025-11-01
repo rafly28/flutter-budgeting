@@ -3,119 +3,154 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../controllers/expense_controller.dart';
+import '../controllers/user_controller.dart';
 import '../models/expense.dart';
+import '../widgets/finance_summary_card.dart';
+import '../widgets/dashboard_menu.dart';
 import '../utils/currency_input_formatter.dart';
+import 'history_page.dart';
 import 'add_expense_page.dart';
+import 'coming_soon.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<ExpenseController>();
-    final expenses = controller.expenses;
+    final expenseController = context.watch<ExpenseController>();
+    final user = context.watch<UserController>().user;
+    final now = DateTime.now();
+
+    // 🔹 Transaksi bulan ini
+    final currentMonthExpenses =
+        expenseController.getExpensesByMonth(now.year, now.month);
+
+    final totalIncome = currentMonthExpenses
+        .where((e) => e.type == "income")
+        .fold(0.0, (sum, e) => sum + e.amount);
+
+    final totalExpense = currentMonthExpenses
+        .where((e) => e.type == "expense")
+        .fold(0.0, (sum, e) => sum + e.amount);
+
+    final balance = totalIncome - totalExpense;
+
+    // 🔹 Transaksi hari ini
+    final todayExpenses = currentMonthExpenses.where((e) =>
+        e.date.year == now.year &&
+        e.date.month == now.month &&
+        e.date.day == now.day).toList();
+
+    final todayTotalExpense =
+        todayExpenses.where((e) => e.type == "expense").fold(0.0, (s, e) => s + e.amount);
 
     return Scaffold(
-      // appBar: AppBar(
-      //   title: const Text("Budgeting App"),
-      // ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Halo user & tanggal
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Hello User",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  "Tanggal: ${DateFormat('d MMM y', 'id_ID').format(DateTime.now())}",
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+      appBar: AppBar(
+        title: Text(
+          "Halo, ${user?.name ?? "User"} 👋\nHari ini: ${DateFormat('d MMMM y', 'id_ID').format(now)}",
+          style: const TextStyle(fontSize: 16),
+        ),
+      ),
+      body: Column(
+        children: [
+          FinanceSummaryCard(
+            balance: balance,
+            income: totalIncome,
+            expense: totalExpense,
+          ),
 
-            // Card keuangan
-            Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    const Text(
-                      "Keuangan",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      CurrencyInputFormatter.format(controller.balance),
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    const Divider(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        Column(
-                          children: [
-                            const Text("Pemasukan"),
-                            Text(CurrencyInputFormatter.format(controller.totalIncome)),
-                          ],
-                        ),
-                        Column(
-                          children: [
-                            const Text("Pengeluaran"),
-                            Text(CurrencyInputFormatter.format(controller.totalExpense)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+          DashboardMenu(
+            items: [
+              DashboardMenuItem(
+                label: "History",
+                icon: Icons.history,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HistoryPage()),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
+              DashboardMenuItem(
+                label: "Statistic",
+                icon: Icons.bar_chart,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ComingSoonPage()),
+                ),
+              ),
+              DashboardMenuItem(
+                label: "Tutup Bulan",
+                icon: Icons.lock,
+                onTap: () {
+                  expenseController.closeMonth();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("📊 Laporan bulanan disimpan")),
+                  );
+                },
+              ),
+            ],
+          ),
 
-            // Transaksi hari ini
-            Text(
-              "Transaksi Hari ini: ${CurrencyInputFormatter.format(
-                expenses
-                    .where((e) =>
-                        e.date.year == DateTime.now().year &&
-                        e.date.month == DateTime.now().month &&
-                        e.date.day == DateTime.now().day)
-                    .fold(0.0, (sum, e) => sum + e.amount),
-              )}",
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
+          const SizedBox(height: 10),
+          Text(
+            "Total Pengeluaran Hari Ini: ${CurrencyInputFormatter.format(todayTotalExpense)}",
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
 
-            Expanded(
-              child: expenses.isEmpty
-                  ? const Center(child: Text("Belum ada transaksi"))
-                  : ListView.builder(
-                      itemCount: expenses.length,
-                      itemBuilder: (context, index) {
-                        final Expense exp = expenses[index];
-                        return Card(
+          const SizedBox(height: 10),
+          Expanded(
+            child: todayExpenses.isEmpty
+                ? const Center(child: Text("Belum ada transaksi hari ini"))
+                : ListView.builder(
+                    itemCount: todayExpenses.length,
+                    itemBuilder: (context, index) {
+                      final Expense exp = todayExpenses[index];
+                      final isToday = exp.date.year == now.year &&
+                          exp.date.month == now.month &&
+                          exp.date.day == now.day;
+
+                      return Dismissible(
+                        key: ValueKey(exp.key),
+                        direction: isToday
+                            ? DismissDirection.endToStart
+                            : DismissDirection.none,
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        confirmDismiss: (_) async {
+                          if (!isToday) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text("❌ Transaksi tidak bisa dihapus (sudah tutup buku)")),
+                            );
+                            return false;
+                          }
+                          return true;
+                        },
+                        onDismissed: (_) {
+                          expenseController.removeExpense(
+                            expenseController.expenses.indexOf(exp),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("🗑️ Transaksi dihapus")),
+                          );
+                        },
+                        child: Card(
                           child: ListTile(
                             leading: CircleAvatar(
                               child: Icon(
                                 exp.type == "income"
                                     ? Icons.arrow_downward
                                     : Icons.arrow_upward,
-                                color: exp.type == "income" ? Colors.green : Colors.red,
+                                color: exp.type == "income"
+                                    ? Colors.green
+                                    : Colors.red,
                               ),
                             ),
                             title: Text(
-                              exp.note == null || exp.note!.isEmpty
-                                  ? exp.category
-                                  : exp.note!,
+                              exp.note?.isNotEmpty == true ? exp.note! : exp.category,
                             ),
                             subtitle: Text(
                               DateFormat('d MMM y', 'id_ID').format(exp.date),
@@ -128,23 +163,23 @@ class DashboardPage extends StatelessWidget {
                               ),
                             ),
                           ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
 
-      // Floating button → tambah transaksi
+      // 🔹 FAB utama: tambah transaksi
       floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.add),
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AddExpensePage()),
           );
         },
-        child: const Icon(Icons.add),
       ),
     );
   }

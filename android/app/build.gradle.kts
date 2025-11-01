@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.budgetin"
+    namespace = "com.fly2win.atoorduid"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

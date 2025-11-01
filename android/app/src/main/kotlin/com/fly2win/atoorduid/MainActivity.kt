@@ -1,4 +1,4 @@
-package com.example.budgetin
+package com.fly2win.atoorduid
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,9 +1,23 @@
-class Expense {
-  final double amount;
-  final String category;
-  final String? note;
-  final DateTime date;
-  final String type; // "income" atau "expense"
+import 'package:hive/hive.dart';
+
+part 'expense.g.dart'; // 👈 ini file adapter auto-generated
+
+@HiveType(typeId: 0) // setiap model butuh ID unik
+class Expense extends HiveObject {
+  @HiveField(0)
+  double amount;
+
+  @HiveField(1)
+  String category;
+
+  @HiveField(2)
+  String? note;
+
+  @HiveField(3)
+  DateTime date;
+
+  @HiveField(4)
+  String type; // "income" atau "expense"
 
   Expense({
     required this.amount,
