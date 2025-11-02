@@ -11,6 +11,7 @@ import '../utils/currency_input_formatter.dart';
 import 'history_page.dart';
 import 'add_expense_page.dart';
 import 'coming_soon.dart';
+import 'statistic_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -74,7 +75,7 @@ class DashboardPage extends StatelessWidget {
                 icon: Icons.bar_chart,
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => ComingSoonPage()),
+                  MaterialPageRoute(builder: (_) => StatisticPage()),
                 ),
               ),
             ],

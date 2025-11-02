@@ -16,7 +16,7 @@ class CurrencyInputFormatter extends TextInputFormatter {
 
     // buang semua tanda non-digit
     final digitsOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    final number = int.parse(digitsOnly);
+    final number = int.tryParse(digitsOnly);
 
     final newString = _formatter.format(number);
 

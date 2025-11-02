@@ -121,4 +121,42 @@ class ExpenseController extends ChangeNotifier {
       notifyListeners();
     }
   }
+    // Ambil ringkasan bulanan (total pemasukan, pengeluaran, saldo)
+  Map<String, double> getMonthlySummary(int year, int month) {
+    final monthlyExpenses = getExpensesByMonth(year, month);
+    double income = 0;
+    double expense = 0;
+
+    for (var e in monthlyExpenses) {
+      if (e.type == "income") {
+        income += e.amount;
+      } else if (e.type == "expense") {
+        expense += e.amount;
+      }
+    }
+
+    return {
+      "income": income,
+      "expense": expense,
+      "balance": income - expense,
+    };
+  }
+
+  // Ambil detail kategori (berapa total per kategori dalam sebulan)
+  Map<String, double> getCategoryBreakdown(int year, int month, {String? type}) {
+    final monthlyExpenses = getExpensesByMonth(year, month);
+    final Map<String, double> breakdown = {};
+
+    for (var e in monthlyExpenses) {
+      if (type != null && e.type != type) continue;
+
+      breakdown[e.category] = (breakdown[e.category] ?? 0) + e.amount;
+    }
+
+    // urutkan dari yang terbesar
+    final sortedEntries = breakdown.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Map.fromEntries(sortedEntries);
+  }
 }
