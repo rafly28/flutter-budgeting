@@ -77,16 +77,6 @@ class DashboardPage extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => ComingSoonPage()),
                 ),
               ),
-              DashboardMenuItem(
-                label: "Tutup Bulan",
-                icon: Icons.lock,
-                onTap: () {
-                  expenseController.closeMonth();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("📊 Laporan bulanan disimpan")),
-                  );
-                },
-              ),
             ],
           ),
 
@@ -119,15 +109,30 @@ class DashboardPage extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: const Icon(Icons.delete, color: Colors.white),
                         ),
-                        confirmDismiss: (_) async {
-                          if (!isToday) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text("❌ Transaksi tidak bisa dihapus (sudah tutup buku)")),
-                            );
-                            return false;
-                          }
-                          return true;
+                        confirmDismiss: (direction) async {
+                          return await showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: const Text("Konfirmasi Hapus"),
+                                content: Text(
+                                  "Apakah Anda yakin ingin menghapus transaksi ${exp.type == 'income' ? 'Pemasukan' : 'Pengeluaran'} senilai ${CurrencyInputFormatter.format(exp.amount)}?",
+                                ),
+                                actions: <Widget>[
+                                  TextButton(
+                                    // Jika menekan BATAL, pop(false) -> item kembali ke posisi semula
+                                    onPressed: () => Navigator.of(context).pop(false), 
+                                    child: const Text("BATAL"),
+                                  ),
+                                  TextButton(
+                                    // Jika menekan HAPUS, pop(true) -> onDismissed akan dieksekusi
+                                    onPressed: () => Navigator.of(context).pop(true), 
+                                    child: const Text("HAPUS", style: TextStyle(color: Colors.red)),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
                         },
                         onDismissed: (_) {
                           expenseController.removeExpense(

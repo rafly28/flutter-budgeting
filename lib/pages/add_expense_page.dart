@@ -5,7 +5,9 @@ import '../models/expense.dart';
 import '../utils/currency_input_formatter.dart';
 
 class AddExpensePage extends StatefulWidget {
-  const AddExpensePage({super.key});
+  final DateTime? initialDate; // 🔹 bisa kirim tanggal dari luar (misal dari HistoryPage)
+
+  const AddExpensePage({super.key, this.initialDate});
 
   @override
   State<AddExpensePage> createState() => _AddExpensePageState();
@@ -13,12 +15,12 @@ class AddExpensePage extends StatefulWidget {
 
 class _AddExpensePageState extends State<AddExpensePage> {
   final _formKey = GlobalKey<FormState>();
-
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
+
   String _selectedCategory = "Umum";
   String _type = "expense"; // default: pengeluaran
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
 
   final List<String> _categories = [
     "Makanan",
@@ -30,6 +32,13 @@ class _AddExpensePageState extends State<AddExpensePage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // 🔹 Gunakan tanggal yang dikirim dari luar, jika ada (misal dari HistoryPage)
+    _selectedDate = widget.initialDate ?? DateTime.now();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Tambah Transaksi")),
@@ -37,8 +46,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
             children: [
               // Input jumlah uang
               TextFormField(
@@ -82,7 +90,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
               // Dropdown kategori
               DropdownButtonFormField<String>(
-                initialValue: _selectedCategory,
+                value: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: "Kategori",
                   border: OutlineInputBorder(),
@@ -98,12 +106,37 @@ class _AddExpensePageState extends State<AddExpensePage> {
               ),
               const SizedBox(height: 16),
 
-              // Note
+              // Catatan
               TextFormField(
                 controller: _noteController,
                 decoration: const InputDecoration(
-                  labelText: "Catatan",
+                  labelText: "Catatan (opsional)",
                   border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 🔹 Pilih tanggal transaksi
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text("Tanggal Transaksi"),
+                subtitle: Text(
+                  "${_selectedDate.day}-${_selectedDate.month}-${_selectedDate.year}",
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.calendar_today),
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedDate,
+                      firstDate: DateTime(DateTime.now().year, DateTime.now().month - 1, 1),
+                      lastDate: DateTime.now(),
+                      locale: const Locale("id", "ID"),
+                    );
+                    if (picked != null) {
+                      setState(() => _selectedDate = picked);
+                    }
+                  },
                 ),
               ),
               const SizedBox(height: 16),
@@ -111,27 +144,26 @@ class _AddExpensePageState extends State<AddExpensePage> {
               // Tombol simpan
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.save),
+                  label: const Text("Simpan"),
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
-                      // 🔹 Parsing nilai dari controller -> double
                       final raw = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
                       final amount = double.tryParse(raw) ?? 0;
 
                       final newExpense = Expense(
                         amount: amount,
                         category: _selectedCategory,
-                        note: _noteController.text,
+                        note: _noteController.text.trim(),
                         date: _selectedDate,
                         type: _type,
                       );
 
                       context.read<ExpenseController>().addExpense(newExpense);
-
-                      Navigator.pop(context); // balik ke dashboard
+                      Navigator.pop(context);
                     }
                   },
-                  child: const Text("Simpan"),
                 ),
               ),
             ],

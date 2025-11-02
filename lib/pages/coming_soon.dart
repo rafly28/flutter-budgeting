@@ -38,16 +38,6 @@ class ComingSoonPage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () {
-                // Bisa ditambahkan fungsi untuk menghubungi via email atau social media
-                print('Tombol di tekan');
-              },
-              style: ButtonStyle(
-                backgroundColor: MaterialStateProperty.all(Colors.blue),
-              ),
-              child: Text('Ikuti Kami di Media Sosial'),
-            ),
           ],
         ),
       ),
