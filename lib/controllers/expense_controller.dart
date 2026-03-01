@@ -5,7 +5,9 @@ import '../models/monthly_report.dart';
 
 class ExpenseController extends ChangeNotifier {
   final Box<Expense> _box = Hive.box<Expense>('expensesBox');
-  final Box<MonthlyReport> _reportBox = Hive.box<MonthlyReport>('monthlyReportsBox');
+  final Box<MonthlyReport> _reportBox = Hive.box<MonthlyReport>(
+    'monthlyReportsBox',
+  );
 
   // Ambil semua transaksi
   List<Expense> get expenses => _box.values.toList();
@@ -17,10 +19,12 @@ class ExpenseController extends ChangeNotifier {
   void addExpense(Expense expense) {
     _box.add(expense);
     if (kDebugMode) {
-      print("✅ Expense disimpan ke Hive: ${expense.amount}, "
-          "kategori: ${expense.category}, "
-          "tipe: ${expense.type}, "
-          "note: ${expense.note}");
+      print(
+        "✅ Expense disimpan ke Hive: ${expense.amount}, "
+        "kategori: ${expense.category}, "
+        "tipe: ${expense.type}, "
+        "note: ${expense.note}",
+      );
     }
     notifyListeners();
   }
@@ -41,10 +45,12 @@ class ExpenseController extends ChangeNotifier {
     if (index >= 0 && index < _box.length) {
       _box.putAt(index, updatedExpense);
       if (kDebugMode) {
-        print("✏️ Expense index $index diperbarui: ${updatedExpense.amount}, "
-            "kategori: ${updatedExpense.category}, "
-            "tipe: ${updatedExpense.type}, "
-            "note: ${updatedExpense.note}");
+        print(
+          "✏️ Expense index $index diperbarui: ${updatedExpense.amount}, "
+          "kategori: ${updatedExpense.category}, "
+          "tipe: ${updatedExpense.type}, "
+          "note: ${updatedExpense.note}",
+        );
       }
       notifyListeners();
     }
@@ -80,10 +86,12 @@ class ExpenseController extends ChangeNotifier {
     _reportBox.put(monthKey, report);
 
     if (kDebugMode) {
-      print("📊 Monthly Report disimpan: $monthKey "
-          "(Income: ${report.totalIncome}, "
-          "Expense: ${report.totalExpense}, "
-          "Balance: ${report.balance})");
+      print(
+        "📊 Monthly Report disimpan: $monthKey "
+        "(Income: ${report.totalIncome}, "
+        "Expense: ${report.totalExpense}, "
+        "Balance: ${report.balance})",
+      );
     }
 
     notifyListeners();
@@ -94,6 +102,14 @@ class ExpenseController extends ChangeNotifier {
     return _box.values
         .where((e) => e.date.year == year && e.date.month == month)
         .toList();
+  }
+
+  List<Expense> getExpensesByDateRange(DateTime startDate, DateTime endDate) {
+    return _box.values.where((e) {
+      // Mengambil transaksi yang berada di antara startDate dan endDate
+      return e.date.isAfter(startDate.subtract(const Duration(days: 1))) &&
+          e.date.isBefore(endDate.add(const Duration(days: 1)));
+    }).toList();
   }
 
   // Hapus transaksi lama lebih dari X bulan
@@ -116,7 +132,9 @@ class ExpenseController extends ChangeNotifier {
 
     if (toDeleteKeys.isNotEmpty) {
       if (kDebugMode) {
-        print("🧹 ${toDeleteKeys.length} transaksi lama dihapus (lebih dari $months bulan)");
+        print(
+          "🧹 ${toDeleteKeys.length} transaksi lama dihapus (lebih dari $months bulan)",
+        );
       }
       notifyListeners();
     }

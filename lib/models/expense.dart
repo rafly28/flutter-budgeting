@@ -19,11 +19,15 @@ class Expense extends HiveObject {
   @HiveField(4)
   String type; // "income" atau "expense"
 
+  @HiveField(5, defaultValue: 'Budget Utama')
+  String source;
+
   Expense({
     required this.amount,
     required this.category,
     this.note,
     required this.date,
     required this.type,
+    this.source = 'Budget Utama',
   });
 }

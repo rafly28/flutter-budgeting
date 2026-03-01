@@ -1,3 +1,4 @@
+import 'package:aturduid/pages/statistic_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +11,8 @@ import '../widgets/dashboard_menu.dart';
 import '../utils/currency_input_formatter.dart';
 import 'history_page.dart';
 import 'add_expense_page.dart';
-import 'coming_soon.dart';
+import 'settings_page.dart';
+import 'saving_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -22,8 +24,10 @@ class DashboardPage extends StatelessWidget {
     final now = DateTime.now();
 
     // 🔹 Transaksi bulan ini
-    final currentMonthExpenses =
-        expenseController.getExpensesByMonth(now.year, now.month);
+    final currentMonthExpenses = expenseController.getExpensesByMonth(
+      now.year,
+      now.month,
+    );
 
     final totalIncome = currentMonthExpenses
         .where((e) => e.type == "income")
@@ -36,13 +40,18 @@ class DashboardPage extends StatelessWidget {
     final balance = totalIncome - totalExpense;
 
     // 🔹 Transaksi hari ini
-    final todayExpenses = currentMonthExpenses.where((e) =>
-        e.date.year == now.year &&
-        e.date.month == now.month &&
-        e.date.day == now.day).toList();
+    final todayExpenses = currentMonthExpenses
+        .where(
+          (e) =>
+              e.date.year == now.year &&
+              e.date.month == now.month &&
+              e.date.day == now.day,
+        )
+        .toList();
 
-    final todayTotalExpense =
-        todayExpenses.where((e) => e.type == "expense").fold(0.0, (s, e) => s + e.amount);
+    final todayTotalExpense = todayExpenses
+        .where((e) => e.type == "expense")
+        .fold(0.0, (s, e) => s + e.amount);
 
     return Scaffold(
       appBar: AppBar(
@@ -50,6 +59,18 @@ class DashboardPage extends StatelessWidget {
           "Halo, ${user?.name ?? "User"} 👋\nHari ini: ${DateFormat('d MMMM y', 'id_ID').format(now)}",
           style: const TextStyle(fontSize: 16),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Pengaturan',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -74,7 +95,7 @@ class DashboardPage extends StatelessWidget {
                 icon: Icons.bar_chart,
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => ComingSoonPage()),
+                  MaterialPageRoute(builder: (_) => const StatisticPage()),
                 ),
               ),
               DashboardMenuItem(
@@ -83,9 +104,19 @@ class DashboardPage extends StatelessWidget {
                 onTap: () {
                   expenseController.closeMonth();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("📊 Laporan bulanan disimpan")),
+                    const SnackBar(
+                      content: Text("📊 Laporan bulanan disimpan"),
+                    ),
                   );
                 },
+              ),
+              DashboardMenuItem(
+                label: "Tabungan",
+                icon: Icons.lock,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SavingsPage()),
+                ),
               ),
             ],
           ),
@@ -104,7 +135,8 @@ class DashboardPage extends StatelessWidget {
                     itemCount: todayExpenses.length,
                     itemBuilder: (context, index) {
                       final Expense exp = todayExpenses[index];
-                      final isToday = exp.date.year == now.year &&
+                      final isToday =
+                          exp.date.year == now.year &&
                           exp.date.month == now.month &&
                           exp.date.day == now.day;
 
@@ -123,7 +155,10 @@ class DashboardPage extends StatelessWidget {
                           if (!isToday) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                  content: Text("❌ Transaksi tidak bisa dihapus (sudah tutup buku)")),
+                                content: Text(
+                                  "❌ Transaksi tidak bisa dihapus (sudah tutup buku)",
+                                ),
+                              ),
                             );
                             return false;
                           }
@@ -134,7 +169,9 @@ class DashboardPage extends StatelessWidget {
                             expenseController.expenses.indexOf(exp),
                           );
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("🗑️ Transaksi dihapus")),
+                            const SnackBar(
+                              content: Text("🗑️ Transaksi dihapus"),
+                            ),
                           );
                         },
                         child: Card(
@@ -150,7 +187,9 @@ class DashboardPage extends StatelessWidget {
                               ),
                             ),
                             title: Text(
-                              exp.note?.isNotEmpty == true ? exp.note! : exp.category,
+                              exp.note?.isNotEmpty == true
+                                  ? exp.note!
+                                  : exp.category,
                             ),
                             subtitle: Text(
                               DateFormat('d MMM y', 'id_ID').format(exp.date),
@@ -158,7 +197,9 @@ class DashboardPage extends StatelessWidget {
                             trailing: Text(
                               CurrencyInputFormatter.format(exp.amount),
                               style: TextStyle(
-                                color: exp.type == "income" ? Colors.green : Colors.red,
+                                color: exp.type == "income"
+                                    ? Colors.green
+                                    : Colors.red,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
