@@ -19,17 +19,26 @@ class SavingAccountAdapter extends TypeAdapter<SavingAccount> {
     return SavingAccount(
       name: fields[0] as String,
       balance: fields[1] as double,
+      bankName: fields[2] == null ? '' : fields[2] as String,
+      accountNumber: fields[3] == null ? '' : fields[3] as String,
+      accountHolderName: fields[4] == null ? '' : fields[4] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, SavingAccount obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
-      ..write(obj.balance);
+      ..write(obj.balance)
+      ..writeByte(2)
+      ..write(obj.bankName)
+      ..writeByte(3)
+      ..write(obj.accountNumber)
+      ..writeByte(4)
+      ..write(obj.accountHolderName);
   }
 
   @override

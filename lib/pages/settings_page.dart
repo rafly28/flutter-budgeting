@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../controllers/user_controller.dart';
@@ -181,9 +182,12 @@ class SettingsPage extends StatelessWidget {
     double currentLimit,
     BudgetController controller,
   ) {
-    final amountController = TextEditingController(
-      text: currentLimit > 0 ? currentLimit.toInt().toString() : "",
-    );
+    // Format text default agar jika diedit tampilannya sudah rapi (misal: 1.000.000)
+    final initialText = currentLimit > 0
+        ? NumberFormat.decimalPattern("id_ID").format(currentLimit.toInt())
+        : "";
+    final amountController = TextEditingController(text: initialText);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -191,6 +195,7 @@ class SettingsPage extends StatelessWidget {
         content: TextField(
           controller: amountController,
           keyboardType: TextInputType.number,
+          inputFormatters: [CurrencyInputFormatter()], // 👈 Tambahkan formatter
           decoration: const InputDecoration(
             labelText: "Maksimal (Rp)",
             prefixText: "Rp ",
@@ -203,7 +208,13 @@ class SettingsPage extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () {
-              double newLimit = double.tryParse(amountController.text) ?? 0.0;
+              // Bersihkan titik sebelum disimpan ke database
+              final String cleanAmount = amountController.text.replaceAll(
+                RegExp(r'[^0-9]'),
+                '',
+              );
+              double newLimit = double.tryParse(cleanAmount) ?? 0.0;
+
               controller.setBudgetLimit(category, newLimit);
               Navigator.pop(context); // Tutup dialog input
               Navigator.pop(context); // Tutup bottom sheet agar UI refresh

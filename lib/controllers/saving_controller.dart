@@ -7,24 +7,45 @@ class SavingController extends ChangeNotifier {
 
   List<SavingAccount> get savings => _box.values.toList();
 
-  // Hitung total semua uang di tabungan
   double get totalSavingsBalance =>
       _box.values.fold(0.0, (sum, item) => sum + item.balance);
 
-  // Buat cabang tabungan baru
-  void addSavingAccount(String name, double initialBalance) {
-    _box.add(SavingAccount(name: name, balance: initialBalance));
+  // 👇 UPDATE: Tambah parameter baru
+  void addSavingAccount(
+    String name,
+    double initialBalance,
+    String bank,
+    String accNum,
+    String holderName,
+  ) {
+    _box.add(
+      SavingAccount(
+        name: name,
+        balance: initialBalance,
+        bankName: bank,
+        accountNumber: accNum,
+        accountHolderName: holderName,
+      ),
+    );
     notifyListeners();
   }
 
-  // Update nama tabungan
-  void updateSavingName(SavingAccount account, String newName) {
+  // 👇 UPDATE: Fungsi edit
+  void updateSavingDetails(
+    SavingAccount account,
+    String newName,
+    String bank,
+    String accNum,
+    String holderName,
+  ) {
     account.name = newName;
+    account.bankName = bank;
+    account.accountNumber = accNum;
+    account.accountHolderName = holderName;
     account.save();
     notifyListeners();
   }
 
-  // Tambah/Kurangi saldo tabungan (digunakan saat ada transaksi)
   void updateBalance(SavingAccount account, double amount, String type) {
     if (type == 'income') {
       account.balance += amount;
@@ -35,7 +56,6 @@ class SavingController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Hapus tabungan
   void deleteSaving(SavingAccount account) {
     account.delete();
     notifyListeners();

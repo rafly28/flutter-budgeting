@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:table_calendar/table_calendar.dart';
+import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart'; // 👈 Menggunakan package kalender Anda
 
 import '../controllers/expense_controller.dart';
 import '../models/expense.dart';
 import '../utils/currency_input_formatter.dart';
+import 'add_expense_page.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -14,121 +16,127 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
+  DateTime _selectedDay = DateTime.now();
+  CalendarFormat _calendarFormat =
+      CalendarFormat.week; // Default tampil per minggu agar hemat tempat
 
   @override
   Widget build(BuildContext context) {
-    final expenses = context.watch<ExpenseController>().expenses;
+    final expenseController = context.watch<ExpenseController>();
+    final now = DateTime.now();
 
-    // tentukan firstDay sesuai transaksi pertama
-    DateTime firstDay;
-    if (expenses.isNotEmpty) {
-      expenses.sort((a, b) => a.date.compareTo(b.date));
-      firstDay = expenses.first.date;
-    } else {
-      firstDay = DateTime(DateTime.now().year, DateTime.now().month, 1);
-    }
+    // 🎯 BATAS KALENDER: Maksimal 1 bulan ke belakang, dan maksimal hari ini
+    final firstDate = DateTime(now.year, now.month - 1, now.day);
+    final lastDate = now;
 
-    // filter transaksi sesuai tanggal yang dipilih
-    final filteredExpenses = expenses.where((e) =>
-        e.date.year == _selectedDay.year &&
-        e.date.month == _selectedDay.month &&
-        e.date.day == _selectedDay.day).toList();
-        // e.type == "expense").toList();
-
-    final totalPengeluaran = filteredExpenses.fold<double>(
-      0.0,
-      (sum, e) => sum + e.amount,
-    );
+    // Filter transaksi HANYA untuk hari yang dipilih di kalender
+    final filteredExpenses = expenseController.expenses.where((e) {
+      return isSameDay(e.date, _selectedDay);
+    }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Histori Transaksi")),
+      appBar: AppBar(title: const Text('Riwayat Transaksi')),
       body: Column(
         children: [
-          TableCalendar<Expense>(
-            focusedDay: _focusedDay,
-            firstDay: firstDay,
-            lastDay: DateTime.now(),
-            locale: 'id_ID',
-            calendarFormat: CalendarFormat.month,
-
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-
-            onDaySelected: (selectedDay, focusedDay) {
-              setState(() {
-                _selectedDay = selectedDay;
-                _focusedDay = focusedDay;
-              });
-            },
-
-            onPageChanged: (focusedDay) {
-              _focusedDay = focusedDay;
-            },
-
-            headerStyle: const HeaderStyle(
-              formatButtonVisible: false,
-              titleCentered: true,
+          // 🔹 KALENDER INTERAKTIF
+          Container(
+            color: Colors.white,
+            child: TableCalendar(
+              firstDay: firstDate,
+              lastDay: lastDate,
+              focusedDay: _focusedDay,
+              calendarFormat: _calendarFormat,
+              startingDayOfWeek: StartingDayOfWeek.monday,
+              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              onDaySelected: (selectedDay, focusedDay) {
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay; // update bulan yang sedang dilihat
+                });
+              },
+              onFormatChanged: (format) {
+                if (_calendarFormat != format) {
+                  setState(() => _calendarFormat = format);
+                }
+              },
+              calendarStyle: const CalendarStyle(
+                selectedDecoration: BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                ),
+                todayDecoration: BoxDecoration(
+                  color: Colors.blueGrey,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              headerStyle: const HeaderStyle(
+                formatButtonVisible: true,
+                titleCentered: true,
+              ),
             ),
+          ),
 
-            // 🔹 Tampilkan event marker
-            eventLoader: (day) {
-              return expenses.where((e) =>
-                  e.date.year == day.year &&
-                  e.date.month == day.month &&
-                  e.date.day == day.day).toList();
-            },
+          const Divider(height: 1, thickness: 1),
 
-            calendarBuilders: CalendarBuilders(
-              markerBuilder: (context, day, events) {
-                if (events.isNotEmpty) {
-                  return Positioned(
-                    bottom: 1,
-                    child: Row(
+          // 🔹 DAFTAR TRANSAKSI PADA TANGGAL TERSEBUT
+          Expanded(
+            child: filteredExpenses.isEmpty
+                ? Center(
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.red,
-                          ),
+                        Icon(
+                          Icons.receipt_long,
+                          size: 64,
+                          color: Colors.grey.shade300,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          "Tidak ada transaksi pada\n${DateFormat('d MMM y', 'id_ID').format(_selectedDay)}",
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.grey),
                         ),
                       ],
                     ),
-                  );
-                }
-                return null;
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          Text(
-            "Total Pengeluaran: ${CurrencyInputFormatter.format(totalPengeluaran)}",
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          Expanded(
-            child: filteredExpenses.isEmpty
-                ? const Center(child: Text("Tidak ada pengeluaran di tanggal ini"))
+                  )
                 : ListView.builder(
+                    padding: const EdgeInsets.all(8),
                     itemCount: filteredExpenses.length,
                     itemBuilder: (context, index) {
-                      final Expense exp = filteredExpenses[index];
+                      final Expense exp = filteredExpenses.reversed
+                          .toList()[index];
                       return Card(
                         child: ListTile(
-                          leading: const Icon(Icons.money),
-                          title: Text(CurrencyInputFormatter.format(exp.amount)),
-                          subtitle: Text(
-                            exp.note?.isNotEmpty == true
-                                ? exp.note!
-                                : exp.category,
+                          leading: CircleAvatar(
+                            backgroundColor: exp.type == "income"
+                                ? Colors.green.shade100
+                                : Colors.red.shade100,
+                            child: Icon(
+                              exp.type == "income"
+                                  ? Icons.arrow_downward
+                                  : Icons.arrow_upward,
+                              color: exp.type == "income"
+                                  ? Colors.green
+                                  : Colors.red,
+                            ),
+                          ),
+                          title: Text(
+                            exp.category,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: exp.note?.isNotEmpty == true
+                              ? Text(exp.note!)
+                              : null,
+                          trailing: Text(
+                            CurrencyInputFormatter.format(exp.amount),
+                            style: TextStyle(
+                              color: exp.type == "income"
+                                  ? Colors.green
+                                  : Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       );
@@ -136,6 +144,22 @@ class _HistoryPageState extends State<HistoryPage> {
                   ),
           ),
         ],
+      ),
+
+      // 🔹 TOMBOL ADD (Otomatis menggunakan tanggal yang dipilih)
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'Tambah Transaksi Susulan',
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AddExpensePage(
+                fixedDate: _selectedDay, // 👈 Kirim tanggal kalender ke Form
+              ),
+            ),
+          );
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }

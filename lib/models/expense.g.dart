@@ -22,13 +22,14 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
       note: fields[2] as String?,
       date: fields[3] as DateTime,
       type: fields[4] as String,
+      source: fields[5] == null ? 'Budget Utama' : fields[5] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, Expense obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.amount)
       ..writeByte(1)
@@ -38,7 +39,9 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
       ..writeByte(3)
       ..write(obj.date)
       ..writeByte(4)
-      ..write(obj.type);
+      ..write(obj.type)
+      ..writeByte(5)
+      ..write(obj.source);
   }
 
   @override
