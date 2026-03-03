@@ -18,6 +18,7 @@ import 'models/category_budget.dart';
 import 'models/saving_account.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/onboarding_page.dart';
+import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +46,9 @@ Future<void> main() async {
 
   final userBox = Hive.box<UserProfile>('userBox');
   final hasUser = userBox.isNotEmpty;
+
+  await NotificationService.init();
+  NotificationService.scheduleDailyReminder();
 
   runApp(
     MultiProvider(
