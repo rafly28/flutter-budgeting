@@ -336,6 +336,8 @@ class _SavingsPageState extends State<SavingsPage> {
     final holderCtrl = TextEditingController(
       text: isEdit ? accountToEdit.accountHolderName : '',
     );
+
+    // Format saldo agar rapi (misal: 1.500.000)
     final initialBalance = isEdit && accountToEdit.balance > 0
         ? NumberFormat.decimalPattern(
             "id_ID",
@@ -372,15 +374,16 @@ class _SavingsPageState extends State<SavingsPage> {
                 controller: holderCtrl,
                 decoration: const InputDecoration(labelText: 'Atas Nama'),
               ),
-              if (!isEdit) // Saldo hanya bisa diatur di awal
-                TextField(
-                  controller: balanceCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [CurrencyInputFormatter()],
-                  decoration: const InputDecoration(
-                    labelText: 'Saldo Awal (Rp)',
-                  ),
+              // 👇 Field Saldo sekarang tampil di mode Edit maupun Add
+              TextField(
+                controller: balanceCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [CurrencyInputFormatter()],
+                decoration: const InputDecoration(
+                  labelText: 'Saldo Tabungan (Koreksi jika salah)',
+                  prefixText: 'Rp ',
                 ),
+              ),
             ],
           ),
         ),
@@ -400,29 +403,32 @@ class _SavingsPageState extends State<SavingsPage> {
           ElevatedButton(
             onPressed: () {
               if (nameCtrl.text.isNotEmpty) {
+                // Bersihkan titik sebelum disimpan
                 final String cleanAmount = balanceCtrl.text.replaceAll(
                   RegExp(r'[^0-9]'),
                   '',
                 );
                 final double finalBalance = double.tryParse(cleanAmount) ?? 0.0;
+
                 if (isEdit) {
                   controller.updateSavingDetails(
-                    accountToEdit,
+                    accountToEdit, // 👈 WAJIB PAKAI ! (Null Check)
                     nameCtrl.text,
                     bankCtrl.text,
                     accNumCtrl.text,
                     holderCtrl.text,
+                    finalBalance, // 👈 Masukkan saldo baru
                   );
                 } else {
                   controller.addSavingAccount(
                     nameCtrl.text,
-                    double.tryParse(balanceCtrl.text) ?? 0.0,
+                    finalBalance,
                     bankCtrl.text,
                     accNumCtrl.text,
                     holderCtrl.text,
                   );
                 }
-                Navigator.pop(context);
+                Navigator.pop(context); // Tutup dialog
               }
             },
             child: const Text('Simpan'),

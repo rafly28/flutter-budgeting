@@ -37,11 +37,13 @@ class SavingController extends ChangeNotifier {
     String bank,
     String accNum,
     String holderName,
+    double newBalance,
   ) {
     account.name = newName;
     account.bankName = bank;
     account.accountNumber = accNum;
     account.accountHolderName = holderName;
+    account.balance = newBalance;
     account.save();
     notifyListeners();
   }

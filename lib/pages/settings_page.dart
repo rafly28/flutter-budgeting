@@ -217,7 +217,6 @@ class SettingsPage extends StatelessWidget {
 
               controller.setBudgetLimit(category, newLimit);
               Navigator.pop(context); // Tutup dialog input
-              Navigator.pop(context); // Tutup bottom sheet agar UI refresh
             },
             child: const Text("Simpan"),
           ),

@@ -84,6 +84,22 @@ class _AddExpensePageState extends State<AddExpensePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'Tanggal Transaksi',
+                style: TextStyle(color: Colors.grey),
+              ),
+              subtitle: Text(
+                DateFormat('EEEE, d MMMM y', 'id_ID').format(_selectedDate),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const Divider(),
+
             // 🔹 1. PEMILIHAN TIPE TRANSAKSI (3 OPSI)
             Container(
               decoration: BoxDecoration(
@@ -196,24 +212,6 @@ class _AddExpensePageState extends State<AddExpensePage> {
             ],
 
             const SizedBox(height: 20),
-
-            // 🔹 5. TANGGAL (Terkunci jika dari History)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(
-                'Tanggal Transaksi',
-                style: TextStyle(color: Colors.grey),
-              ),
-              subtitle: Text(
-                DateFormat('EEEE, d MMMM y', 'id_ID').format(_selectedDate),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              trailing: const Icon(Icons.lock_clock, color: Colors.grey),
-            ),
-            const Divider(),
 
             // 🔹 6. CATATAN
             TextField(
