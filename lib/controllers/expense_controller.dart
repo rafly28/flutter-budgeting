@@ -20,7 +20,7 @@ class ExpenseController extends ChangeNotifier {
     _box.add(expense);
     if (kDebugMode) {
       print(
-        "✅ Expense disimpan ke Hive: ${expense.amount}, "
+        "Transaksi disimpan ke DB: ${expense.amount}, "
         "kategori: ${expense.category}, "
         "tipe: ${expense.type}, "
         "note: ${expense.note}",

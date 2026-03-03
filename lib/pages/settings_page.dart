@@ -7,7 +7,6 @@ import '../controllers/category_controller.dart';
 import '../controllers/budget_controller.dart';
 import '../utils/currency_input_formatter.dart';
 import 'category_management_page.dart';
-import 'saving_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -15,102 +14,185 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final userController = context.watch<UserController>();
+    final budgetController = context.watch<BudgetController>();
+    final categoryController = context.watch<CategoryController>();
+
+    final userName = userController.user?.name ?? 'User';
+    final payday = userController.payday;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pengaturan')),
-      body: ListView(
-        children: [
-          // 1. Menu Atur Tanggal Tutup Buku
-          ListTile(
-            leading: const Icon(Icons.calendar_month, color: Colors.blue),
-            title: const Text('Atur Tanggal Tutup Buku'),
-            subtitle: Text('Siklus saat ini: Tanggal ${userController.payday}'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showPaydaySettings(context, userController),
-          ),
-          const Divider(height: 1),
-
-          // 2. Menu Kelola Kategori
-          ListTile(
-            leading: const Icon(Icons.category, color: Colors.orange),
-            title: const Text('Kelola Kategori'),
-            subtitle: const Text('Tambah, edit, atau hapus kategori'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const CategoryManagementPage(),
-                ),
-              );
-            },
-          ),
-          const Divider(height: 1),
-
-          // 👇 3. MENU BARU: ATUR LIMIT BUDGET
-          ListTile(
-            leading: const Icon(
-              Icons.account_balance_wallet,
-              color: Colors.green,
-            ),
-            title: const Text('Atur Limit Budget'),
-            subtitle: const Text('Tetapkan batas maksimal pengeluaran bulanan'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showBudgetListBottomSheet(context),
-          ),
-          const Divider(height: 1),
-
-          ListTile(
-            leading: const Icon(Icons.savings, color: Colors.blueAccent),
-            title: const Text('Kelola Tabungan'),
-            subtitle: const Text('Tambah rekening atau dompet tabungan'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SavingsPage()),
-              );
-            },
-          ),
-          const Divider(height: 1),
-        ],
+      backgroundColor: Colors.grey.shade100,
+      appBar: AppBar(
+        backgroundColor: Colors.blue.shade700,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          "Pengaturan",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       ),
-    );
-  }
-
-  void _showPaydaySettings(
-    BuildContext context,
-    UserController userController,
-  ) {
-    int tempPayday = userController.payday;
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text("Atur Tanggal Tutup Buku"),
-          content: DropdownButton<int>(
-            value: tempPayday,
-            isExpanded: true,
-            items: List.generate(28, (index) => index + 1)
-                .map(
-                  (e) => DropdownMenuItem(value: e, child: Text("Tanggal $e")),
-                )
-                .toList(),
-            onChanged: (val) {
-              if (val != null) setDialogState(() => tempPayday = val);
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Batal"),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(
+                bottom: 30,
+                top: 10,
+                left: 20,
+                right: 20,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade700,
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(30),
+                ),
+              ),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.person,
+                      size: 40,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  Text(
+                    userName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                userController.setPayday(tempPayday);
-                Navigator.pop(context);
-              },
-              child: const Text("Simpan"),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Sistem",
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: Icon(
+                            Icons.person_outline,
+                            color: Colors.blue.shade700,
+                          ),
+                          title: const Text("Nama Panggilan"),
+                          subtitle: Text(userName),
+                          trailing: const Icon(
+                            Icons.edit,
+                            size: 18,
+                            color: Colors.grey,
+                          ),
+                          onTap: () => _showEditNameDialog(
+                            context,
+                            userController,
+                            userName,
+                          ),
+                        ),
+                        const Divider(height: 1, indent: 50, endIndent: 16),
+                        ListTile(
+                          leading: Icon(
+                            Icons.calendar_month_outlined,
+                            color: Colors.blue.shade700,
+                          ),
+                          title: const Text("Tanggal Gajian (Siklus)"),
+                          subtitle: Text("Tanggal $payday setiap bulan"),
+                          trailing: const Icon(
+                            Icons.edit,
+                            size: 18,
+                            color: Colors.grey,
+                          ),
+                          onTap: () => _showEditPaydayDialog(
+                            context,
+                            userController,
+                            payday,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Anggaran & Kategori",
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: Icon(
+                            Icons.track_changes_outlined,
+                            color: Colors.red.shade400,
+                          ),
+                          title: const Text("Atur Limit Budget"),
+                          subtitle: const Text(
+                            "Batas pengeluaran per kategori",
+                          ),
+                          trailing: const Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey,
+                          ),
+                          onTap: () => _showBudgetListBottomSheet(
+                            context,
+                            categoryController,
+                            budgetController,
+                          ),
+                        ),
+                        const Divider(height: 1, indent: 50, endIndent: 16),
+                        ListTile(
+                          leading: Icon(
+                            Icons.category_outlined,
+                            color: Colors.orange.shade400,
+                          ),
+                          title: const Text("Kelola Kategori"),
+                          subtitle: const Text("Tambah / hapus kategori"),
+                          trailing: const Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey,
+                          ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CategoryManagementPage(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -118,53 +200,156 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  // 👇 FUNGSI BARU: Menampilkan daftar kategori pengeluaran untuk diatur limitnya
-  void _showBudgetListBottomSheet(BuildContext context) {
+  void _showEditNameDialog(
+    BuildContext context,
+    UserController controller,
+    String currentName,
+  ) {
+    final nameCtrl = TextEditingController(text: currentName);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Ubah Nama"),
+        content: TextField(
+          controller: nameCtrl,
+          decoration: const InputDecoration(labelText: "Nama Baru"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade700,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () {
+              if (nameCtrl.text.isNotEmpty) {
+                controller.setUser(nameCtrl.text); // 👈 Memanggil setUser
+                Navigator.pop(context);
+              }
+            },
+            child: const Text("Simpan", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditPaydayDialog(
+    BuildContext context,
+    UserController controller,
+    int currentPayday,
+  ) {
+    int selectedDay = currentPayday;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Siklus Bulanan (Gajian)"),
+        content: DropdownButtonFormField<int>(
+          value: selectedDay,
+          decoration: const InputDecoration(labelText: "Pilih Tanggal"),
+          items: List.generate(
+            28,
+            (index) => DropdownMenuItem(
+              value: index + 1,
+              child: Text("Tanggal ${index + 1}"),
+            ),
+          ),
+          onChanged: (val) => selectedDay = val ?? currentPayday,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade700,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () {
+              controller.setPayday(selectedDay); // 👈 Memanggil setPayday
+              Navigator.pop(context);
+            },
+            child: const Text("Simpan", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBudgetListBottomSheet(
+    BuildContext context,
+    CategoryController catCtrl,
+    BudgetController budgetCtrl,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        final categoryController = context.watch<CategoryController>();
-        final budgetController = context.watch<BudgetController>();
-        final expenseCategories = categoryController.expenseCategories;
-
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (_, scrollController) => Column(
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: Column(
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  "Atur Limit Budget",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Container(
+                margin: const EdgeInsets.only(top: 10, bottom: 20),
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
+              const Text(
+                "Limit Budget per Kategori",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: expenseCategories.length,
-                  itemBuilder: (context, index) {
-                    final category = expenseCategories[index].name;
-                    final limit = budgetController.getBudgetLimit(category);
-                    return ListTile(
-                      title: Text(category),
-                      subtitle: Text(
-                        limit > 0
-                            ? CurrencyInputFormatter.format(limit)
-                            : "Belum diatur",
-                      ),
-                      trailing: const Icon(Icons.edit, size: 18),
-                      onTap: () => _showSetBudgetDialog(
-                        context,
-                        category,
-                        limit,
-                        budgetController,
-                      ),
+                child: Consumer<BudgetController>(
+                  builder: (context, currentBudgetCtrl, child) {
+                    final categories = catCtrl.expenseCategories;
+                    return ListView.builder(
+                      itemCount: categories.length,
+                      itemBuilder: (context, index) {
+                        final catName = categories[index].name;
+                        final limit = currentBudgetCtrl.getBudgetLimit(catName);
+                        return ListTile(
+                          title: Text(
+                            catName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            limit > 0
+                                ? "Limit: ${CurrencyInputFormatter.format(limit)}"
+                                : "Belum diatur",
+                            style: TextStyle(
+                              color: limit > 0 ? Colors.red : Colors.grey,
+                            ),
+                          ),
+                          trailing: ElevatedButton(
+                            onPressed: () => _showSetBudgetDialog(
+                              context,
+                              catName,
+                              limit,
+                              currentBudgetCtrl,
+                            ),
+                            child: Text(limit > 0 ? "Edit" : "Atur"),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -182,12 +367,10 @@ class SettingsPage extends StatelessWidget {
     double currentLimit,
     BudgetController controller,
   ) {
-    // Format text default agar jika diedit tampilannya sudah rapi (misal: 1.000.000)
     final initialText = currentLimit > 0
         ? NumberFormat.decimalPattern("id_ID").format(currentLimit.toInt())
         : "";
     final amountController = TextEditingController(text: initialText);
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -195,7 +378,7 @@ class SettingsPage extends StatelessWidget {
         content: TextField(
           controller: amountController,
           keyboardType: TextInputType.number,
-          inputFormatters: [CurrencyInputFormatter()], // 👈 Tambahkan formatter
+          inputFormatters: [CurrencyInputFormatter()],
           decoration: const InputDecoration(
             labelText: "Maksimal (Rp)",
             prefixText: "Rp ",
@@ -208,15 +391,15 @@ class SettingsPage extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () {
-              // Bersihkan titik sebelum disimpan ke database
               final String cleanAmount = amountController.text.replaceAll(
                 RegExp(r'[^0-9]'),
                 '',
               );
-              double newLimit = double.tryParse(cleanAmount) ?? 0.0;
-
-              controller.setBudgetLimit(category, newLimit);
-              Navigator.pop(context); // Tutup dialog input
+              controller.setBudgetLimit(
+                category,
+                double.tryParse(cleanAmount) ?? 0.0,
+              );
+              Navigator.pop(context);
             },
             child: const Text("Simpan"),
           ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:table_calendar/table_calendar.dart'; // 👈 Menggunakan package kalender Anda
+import 'package:table_calendar/table_calendar.dart';
 
 import '../controllers/expense_controller.dart';
 import '../models/expense.dart';
@@ -18,30 +18,49 @@ class HistoryPage extends StatefulWidget {
 class _HistoryPageState extends State<HistoryPage> {
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
-  CalendarFormat _calendarFormat =
-      CalendarFormat.week; // Default tampil per minggu agar hemat tempat
+  CalendarFormat _calendarFormat = CalendarFormat.month;
 
   @override
   Widget build(BuildContext context) {
     final expenseController = context.watch<ExpenseController>();
     final now = DateTime.now();
 
-    // 🎯 BATAS KALENDER: Maksimal 1 bulan ke belakang, dan maksimal hari ini
-    final firstDate = DateTime(now.year, now.month - 1, now.day);
+    final firstDate = DateTime(now.year, now.month - 2, now.day);
     final lastDate = now;
 
-    // Filter transaksi HANYA untuk hari yang dipilih di kalender
+    // Filter transaksi berdasarkan kalender
     final filteredExpenses = expenseController.expenses.where((e) {
       return isSameDay(e.date, _selectedDay);
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Riwayat Transaksi')),
+      backgroundColor: Colors.grey.shade100, // 👈 Sama dengan Dashboard
+      appBar: AppBar(
+        backgroundColor: Colors.blue.shade700,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Riwayat Transaksi',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
       body: Column(
         children: [
-          // 🔹 KALENDER INTERAKTIF
+          // 🔹 KALENDER (Diberi sedikit styling melengkung di bawah)
+          // 🔹 KALENDER (Desain Premium)
           Container(
-            color: Colors.white,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(25)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.only(bottom: 12, left: 8, right: 8),
             child: TableCalendar(
               firstDay: firstDate,
               lastDay: lastDate,
@@ -52,34 +71,79 @@ class _HistoryPageState extends State<HistoryPage> {
               onDaySelected: (selectedDay, focusedDay) {
                 setState(() {
                   _selectedDay = selectedDay;
-                  _focusedDay = focusedDay; // update bulan yang sedang dilihat
+                  _focusedDay = focusedDay;
                 });
               },
               onFormatChanged: (format) {
-                if (_calendarFormat != format) {
+                if (_calendarFormat != format)
                   setState(() => _calendarFormat = format);
-                }
               },
-              calendarStyle: const CalendarStyle(
-                selectedDecoration: BoxDecoration(
-                  color: Colors.blue,
-                  shape: BoxShape.circle,
+
+              // 👇 1. Styling Header Kalender
+              headerStyle: HeaderStyle(
+                formatButtonVisible:
+                    false, // Sembunyikan tombol format agar lebih bersih
+                titleCentered: true,
+                titleTextStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Colors.black87,
                 ),
-                todayDecoration: BoxDecoration(
-                  color: Colors.blueGrey,
-                  shape: BoxShape.circle,
+                leftChevronIcon: Icon(
+                  Icons.chevron_left_rounded,
+                  color: Colors.blue.shade700,
+                  size: 28,
+                ),
+                rightChevronIcon: Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.blue.shade700,
+                  size: 28,
                 ),
               ),
-              headerStyle: const HeaderStyle(
-                formatButtonVisible: true,
-                titleCentered: true,
+
+              // 👇 2. Styling Hari & Angka Kalender
+              calendarStyle: CalendarStyle(
+                outsideDaysVisible: false, // Sembunyikan tanggal bulan lain
+                // Tampilan saat hari dipilih
+                selectedDecoration: BoxDecoration(
+                  color: Colors.blue.shade700,
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ), // Bentuk kotak melengkung (Squircle)
+                ),
+                selectedTextStyle: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+
+                // Tampilan untuk "Hari Ini" (Today)
+                todayDecoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200, width: 1.5),
+                ),
+                todayTextStyle: TextStyle(
+                  color: Colors.blue.shade800,
+                  fontWeight: FontWeight.bold,
+                ),
+
+                // Tampilan hari-hari biasa
+                defaultDecoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                weekendDecoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                weekendTextStyle: const TextStyle(
+                  color: Colors.redAccent,
+                ), // Hari libur warna merah
               ),
             ),
           ),
 
-          const Divider(height: 1, thickness: 1),
+          const SizedBox(height: 15),
 
-          // 🔹 DAFTAR TRANSAKSI PADA TANGGAL TERSEBUT
+          // 🔹 DAFTAR TRANSAKSI
           Expanded(
             child: filteredExpenses.isEmpty
                 ? Center(
@@ -101,42 +165,109 @@ class _HistoryPageState extends State<HistoryPage> {
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     itemCount: filteredExpenses.length,
                     itemBuilder: (context, index) {
                       final Expense exp = filteredExpenses.reversed
                           .toList()[index];
-                      return Card(
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: exp.type == "income"
-                                ? Colors.green.shade100
-                                : Colors.red.shade100,
-                            child: Icon(
-                              exp.type == "income"
-                                  ? Icons.arrow_downward
-                                  : Icons.arrow_upward,
-                              color: exp.type == "income"
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
+
+                      return Dismissible(
+                        key: ValueKey(exp.key),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(15),
                           ),
-                          title: Text(
-                            exp.category,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          child: const Icon(
+                            Icons.delete,
+                            color: Colors.white,
+                            size: 28,
                           ),
-                          subtitle: exp.note?.isNotEmpty == true
-                              ? Text(exp.note!)
-                              : null,
-                          trailing: Text(
-                            CurrencyInputFormatter.format(exp.amount),
-                            style: TextStyle(
-                              color: exp.type == "income"
-                                  ? Colors.green
-                                  : Colors.red,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                        ),
+                        onDismissed: (_) {
+                          expenseController.removeExpense(
+                            expenseController.expenses.indexOf(exp),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("🗑️ Transaksi dihapus"),
                             ),
+                          );
+                        },
+                        child: Card(
+                          elevation: 1,
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            leading: CircleAvatar(
+                              radius: 25,
+                              backgroundColor: exp.type == "transfer"
+                                  ? Colors.blue.shade50
+                                  : (exp.type == "income"
+                                        ? Colors.green.shade50
+                                        : Colors.red.shade50),
+                              child: Icon(
+                                exp.type == "transfer"
+                                    ? Icons.sync_alt
+                                    : (exp.type == "income"
+                                          ? Icons.arrow_downward
+                                          : Icons.arrow_upward),
+                                color: exp.type == "transfer"
+                                    ? Colors.blue
+                                    : (exp.type == "income"
+                                          ? Colors.green
+                                          : Colors.red),
+                              ),
+                            ),
+                            title: Text(
+                              exp.category,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            subtitle: Text(
+                              exp.note?.isNotEmpty == true
+                                  ? exp.note!
+                                  : exp.source,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: Text(
+                              CurrencyInputFormatter.format(exp.amount),
+                              style: TextStyle(
+                                color: exp.type == "transfer"
+                                    ? Colors.blue
+                                    : (exp.type == "income"
+                                          ? Colors.green
+                                          : Colors.red),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                            // 👇 FITUR EDIT SAAT DI-KLIK
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      AddExpensePage(expenseToEdit: exp),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       );
@@ -147,20 +278,24 @@ class _HistoryPageState extends State<HistoryPage> {
       ),
 
       // 🔹 TOMBOL ADD (Otomatis menggunakan tanggal yang dipilih)
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Tambah Transaksi Susulan',
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.blue.shade700,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          "Catat Susulan",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => AddExpensePage(
-                fixedDate: _selectedDay, // 👈 Kirim tanggal kalender ke Form
-              ),
+              builder: (_) => AddExpensePage(fixedDate: _selectedDay),
             ),
           );
         },
-        child: const Icon(Icons.add),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation
+          .centerFloat, // 👈 Di tengah bawah agar konsisten
     );
   }
 }
