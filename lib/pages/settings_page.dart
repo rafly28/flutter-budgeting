@@ -7,6 +7,8 @@ import '../controllers/category_controller.dart';
 import '../controllers/budget_controller.dart';
 import '../utils/currency_input_formatter.dart';
 import 'category_management_page.dart';
+import '../services/backup_service.dart';
+import '../services/notification_service.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -189,6 +191,94 @@ class SettingsPage extends StatelessWidget {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Data & Keamanan",
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: const Icon(
+                            Icons.backup_outlined,
+                            color: Colors.blue,
+                          ),
+                          title: const Text("Backup Data"),
+                          subtitle: const Text("Simpan data ke File Manager"),
+                          onTap: () => BackupService.exportBackup(context),
+                        ),
+                        const Divider(height: 1, indent: 50, endIndent: 16),
+                        ListTile(
+                          leading: const Icon(
+                            Icons.restore_outlined,
+                            color: Colors.green,
+                          ),
+                          title: const Text("Restore Data"),
+                          subtitle: const Text("Impor data dari file backup"),
+                          onTap: () async {
+                            bool success = await BackupService.importBackup();
+                            if (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    "✅ Restore Berhasil! Restart aplikasi.",
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Notifikasi",
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: SwitchListTile(
+                      secondary: Icon(
+                        userController.isNotificationEnabled
+                            ? Icons.notifications_active
+                            : Icons.notifications_off_outlined,
+                        color: userController.isNotificationEnabled
+                            ? Colors.blue.shade700
+                            : Colors.grey,
+                      ),
+                      title: const Text(
+                        "Pengingat Harian",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: const Text(
+                        "Ingatkan saya jam 20:00 jika belum catat transaksi hari ini",
+                      ),
+                      value: userController.isNotificationEnabled,
+                      activeColor: Colors.blue.shade700,
+                      onChanged: (bool value) {
+                        userController.toggleNotification(value);
+                      },
                     ),
                   ),
                 ],

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../models/expense.dart';
 import '../models/monthly_report.dart';
+import '../services/notification_service.dart';
 
 class ExpenseController extends ChangeNotifier {
   final Box<Expense> _box = Hive.box<Expense>('expensesBox');
@@ -25,6 +26,12 @@ class ExpenseController extends ChangeNotifier {
         "tipe: ${expense.type}, "
         "note: ${expense.note}",
       );
+    }
+    final now = DateTime.now();
+    if (expense.date.year == now.year &&
+        expense.date.month == now.month &&
+        expense.date.day == now.day) {
+      NotificationService.cancelNotification();
     }
     notifyListeners();
   }

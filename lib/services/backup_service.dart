@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -24,18 +27,29 @@ class BackupService {
     'monthlyReportsBox',
   ];
 
-  // 📤 EXPORT: Simpan data ke File JSON dan Share
-  static Future<void> exportBackup() async {
+  static Future<void> exportBackup(BuildContext context) async {
     Map<String, dynamic> backupData = {};
 
-    for (var boxName in _boxNames) {
-      var box = Hive.box(boxName);
-      // Konversi isi box menjadi list of maps
-      backupData[boxName] = box.values.toList();
-    }
+    backupData['expensesBox'] = Hive.box<Expense>(
+      'expensesBox',
+    ).values.toList();
+    backupData['savingsBox'] = Hive.box<SavingAccount>(
+      'savingsBox',
+    ).values.toList();
+    backupData['categoryBox'] = Hive.box<TransactionCategory>(
+      'categoryBox',
+    ).values.toList();
+    backupData['budgetBox'] = Hive.box<CategoryBudget>(
+      'budgetBox',
+    ).values.toList();
+    backupData['userBox'] = Hive.box<UserProfile>('userBox').values.toList();
+    backupData['userSettingsBox'] = Hive.box<UserSettings>(
+      'userSettingsBox',
+    ).values.toList();
+    backupData['monthlyReportsBox'] = Hive.box<MonthlyReport>(
+      'monthlyReportsBox',
+    ).values.toList();
 
-    // Ubah ke JSON String (Butuh mapping manual jika HiveObject tidak otomatis)
-    // Untuk mempermudah, kita asumsikan HiveObject sudah punya toJson atau kita map manual
     String jsonString = jsonEncode(
       backupData,
       toEncodable: (Object? value) {
@@ -64,7 +78,11 @@ class BackupService {
             'limitAmount': value.limitAmount,
           };
         if (value is UserProfile) return {'name': value.name};
-        if (value is UserSettings) return {'payday': value.payday};
+        if (value is UserSettings)
+          return {
+            'payday': value.payday,
+            'isNotificationEnabled': value.isNotificationEnabled,
+          };
         if (value is MonthlyReport)
           return {
             'month': value.month,
@@ -75,15 +93,38 @@ class BackupService {
         return value;
       },
     );
+    Uint8List bytes = Uint8List.fromList(utf8.encode(jsonString));
+    try {
+      // Gunakan FilePicker untuk memilih lokasi simpan (User bisa buat folder atoorduid di sini)
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Pilih Lokasi Simpan Backup',
+        fileName:
+            'aturduid_backup_${DateFormat('yyyyMMdd').format(DateTime.now())}.json',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        bytes: bytes,
+      );
 
-    final directory = await getTemporaryDirectory();
-    final file = File('${directory.path}/aturduid_backup.json');
-    await file.writeAsString(jsonString);
-
-    await Share.shareXFiles([XFile(file.path)], text: 'Backup Data AturDuid');
+      if (outputFile != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Backup berhasil disimpan"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Gagal menyimpan file: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  // 📥 IMPORT: Baca File JSON dan Timpa Box Hive
   static Future<bool> importBackup() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -95,61 +136,89 @@ class BackupService {
       String content = await file.readAsString();
       Map<String, dynamic> data = jsonDecode(content);
 
-      // Pastikan semua box kosong dulu sebelum ditimpa
-      for (var boxName in _boxNames) {
-        var box = Hive.box(boxName);
-        await box.clear();
+      // 🎯 PERBAIKAN: Restore Box satu per satu dengan tipe yang benar
+      await _restoreBox<Expense>(
+        'expensesBox',
+        data['expensesBox'],
+        (item) => Expense(
+          amount: item['amount'],
+          category: item['category'],
+          note: item['note'],
+          date: DateTime.parse(item['date']),
+          type: item['type'],
+          source: item['source'] ?? 'Budget Utama',
+        ),
+      );
 
-        List<dynamic> list = data[boxName];
-        for (var item in list) {
-          if (boxName == 'expensesBox')
-            box.add(
-              Expense(
-                amount: item['amount'],
-                category: item['category'],
-                note: item['note'],
-                date: DateTime.parse(item['date']),
-                type: item['type'],
-                source: item['source'] ?? 'Budget Utama',
-              ),
-            );
-          if (boxName == 'savingsBox')
-            box.add(
-              SavingAccount(
-                name: item['name'],
-                balance: item['balance'],
-                bankName: item['bankName'],
-                accountNumber: item['accountNumber'],
-                accountHolderName: item['accountHolderName'],
-              ),
-            );
-          if (boxName == 'categoryBox')
-            box.add(
-              TransactionCategory(name: item['name'], type: item['type']),
-            );
-          if (boxName == 'budgetBox')
-            box.add(
-              CategoryBudget(
-                categoryName: item['categoryName'],
-                limitAmount: item['limitAmount'],
-              ),
-            );
-          if (boxName == 'userBox') box.add(UserProfile(name: item['name']));
-          if (boxName == 'userSettingsBox')
-            box.add(UserSettings(payday: item['payday']));
-          if (boxName == 'monthlyReportsBox')
-            box.add(
-              MonthlyReport(
-                month: item['month'],
-                totalIncome: item['totalIncome'],
-                totalExpense: item['totalExpense'],
-                balance: item['balance'],
-              ),
-            );
-        }
-      }
+      await _restoreBox<SavingAccount>(
+        'savingsBox',
+        data['savingsBox'],
+        (item) => SavingAccount(
+          name: item['name'],
+          balance: item['balance'],
+          bankName: item['bankName'],
+          accountNumber: item['accountNumber'],
+          accountHolderName: item['accountHolderName'],
+        ),
+      );
+
+      await _restoreBox<TransactionCategory>(
+        'categoryBox',
+        data['categoryBox'],
+        (item) => TransactionCategory(name: item['name'], type: item['type']),
+      );
+
+      await _restoreBox<CategoryBudget>(
+        'budgetBox',
+        data['budgetBox'],
+        (item) => CategoryBudget(
+          categoryName: item['categoryName'],
+          limitAmount: item['limitAmount'],
+        ),
+      );
+
+      await _restoreBox<UserProfile>(
+        'userBox',
+        data['userBox'],
+        (item) => UserProfile(name: item['name']),
+      );
+
+      await _restoreBox<UserSettings>(
+        'userSettingsBox',
+        data['userSettingsBox'],
+        (item) => UserSettings(
+          payday: item['payday'],
+          isNotificationEnabled: item['isNotificationEnabled'] ?? true,
+        ),
+      );
+
+      await _restoreBox<MonthlyReport>(
+        'monthlyReportsBox',
+        data['monthlyReportsBox'],
+        (item) => MonthlyReport(
+          month: item['month'],
+          totalIncome: item['totalIncome'],
+          totalExpense: item['totalExpense'],
+          balance: item['balance'],
+        ),
+      );
+
       return true;
     }
     return false;
+  }
+
+  // Helper agar kode import lebih rapi
+  static Future<void> _restoreBox<T>(
+    String boxName,
+    List<dynamic>? data,
+    T Function(Map<String, dynamic>) mapper,
+  ) async {
+    if (data == null) return;
+    var box = Hive.box<T>(boxName);
+    await box.clear();
+    for (var item in data) {
+      box.add(mapper(Map<String, dynamic>.from(item)));
+    }
   }
 }

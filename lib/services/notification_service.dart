@@ -8,14 +8,20 @@ class NotificationService {
 
   static Future<void> init() async {
     tz.initializeTimeZones();
+    _notificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.requestNotificationsPermission();
+
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
+
     await _notificationsPlugin.initialize(initializationSettings);
   }
 
-  // Jadwalkan notifikasi harian jam 20:00
   static Future<void> scheduleDailyReminder() async {
     await _notificationsPlugin.zonedSchedule(
       0,
@@ -30,7 +36,7 @@ class NotificationService {
           priority: Priority.high,
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,

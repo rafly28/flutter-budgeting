@@ -39,6 +39,7 @@ Future<void> main() async {
   await Hive.openBox<SavingAccount>('savingsBox');
   await Hive.openBox<CategoryBudget>('budgetBox');
   await Hive.openBox<TransactionCategory>('categoryBox');
+  await Hive.deleteBoxFromDisk('userSettingsBox');
   await Hive.openBox<UserSettings>('userSettingsBox');
   await Hive.openBox<Expense>('expensesBox');
   await Hive.openBox<MonthlyReport>('monthlyReportsBox');
@@ -48,7 +49,17 @@ Future<void> main() async {
   final hasUser = userBox.isNotEmpty;
 
   await NotificationService.init();
-  NotificationService.scheduleDailyReminder();
+  final settingsBox = Hive.box<UserSettings>('userSettingsBox');
+  bool isNotifyEnabled = true;
+  if (settingsBox.isNotEmpty) {
+    isNotifyEnabled = settingsBox.getAt(0)?.isNotificationEnabled ?? true;
+  }
+
+  if (isNotifyEnabled) {
+    NotificationService.scheduleDailyReminder();
+  } else {
+    NotificationService.cancelNotification();
+  }
 
   runApp(
     MultiProvider(
