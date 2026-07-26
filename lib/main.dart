@@ -9,6 +9,7 @@ import 'controllers/user_controller.dart';
 import 'controllers/category_controller.dart';
 import 'controllers/budget_controller.dart';
 import 'controllers/saving_controller.dart';
+import 'controllers/plan_controller.dart';
 import 'models/expense.dart';
 import 'models/monthly_report.dart';
 import 'models/user_profile.dart';
@@ -16,9 +17,12 @@ import 'models/user_settings.dart';
 import 'models/transaction_category.dart';
 import 'models/category_budget.dart';
 import 'models/saving_account.dart';
+import 'models/plan_item.dart';
+import 'models/debt.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/onboarding_page.dart';
 import 'services/notification_service.dart';
+import 'controllers/debt_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +40,8 @@ Future<void> main() async {
   Hive.registerAdapter(TransactionCategoryAdapter());
   Hive.registerAdapter(CategoryBudgetAdapter());
   Hive.registerAdapter(SavingAccountAdapter());
+  Hive.registerAdapter(PlanItemAdapter());
+  Hive.registerAdapter(DebtAdapter());
   await Hive.openBox<SavingAccount>('savingsBox');
   await Hive.openBox<CategoryBudget>('budgetBox');
   await Hive.openBox<TransactionCategory>('categoryBox');
@@ -44,6 +50,8 @@ Future<void> main() async {
   await Hive.openBox<Expense>('expensesBox');
   await Hive.openBox<MonthlyReport>('monthlyReportsBox');
   await Hive.openBox<UserProfile>('userBox');
+  await Hive.openBox<PlanItem>('planBox');
+  await Hive.openBox<Debt>('debtBox');
 
   final userBox = Hive.box<UserProfile>('userBox');
   final hasUser = userBox.isNotEmpty;
@@ -69,6 +77,11 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => CategoryController()),
         ChangeNotifierProvider(create: (_) => BudgetController()),
         ChangeNotifierProvider(create: (_) => SavingController()),
+        ChangeNotifierProvider(create: (_) => PlanController()),
+        ChangeNotifierProxyProvider<ExpenseController, DebtController>(
+          create: (context) => DebtController(context.read<ExpenseController>()),
+          update: (context, expenseController, previous) => previous ?? DebtController(expenseController),
+        ),
       ],
       child: MainApp(hasUser: hasUser),
     ),

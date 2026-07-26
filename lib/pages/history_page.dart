@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../controllers/expense_controller.dart';
+import '../controllers/plan_controller.dart';
 import '../models/expense.dart';
 import '../utils/currency_input_formatter.dart';
 import 'add_expense_page.dart';
@@ -75,8 +76,9 @@ class _HistoryPageState extends State<HistoryPage> {
                 });
               },
               onFormatChanged: (format) {
-                if (_calendarFormat != format)
+                if (_calendarFormat != format) {
                   setState(() => _calendarFormat = format);
+                }
               },
 
               // 👇 1. Styling Header Kalender
@@ -192,6 +194,9 @@ class _HistoryPageState extends State<HistoryPage> {
                           ),
                         ),
                         onDismissed: (_) {
+                          if (exp.planId != null) {
+                            context.read<PlanController>().unmarkPaidByPlanId(exp.planId!);
+                          }
                           expenseController.removeExpense(
                             expenseController.expenses.indexOf(exp),
                           );

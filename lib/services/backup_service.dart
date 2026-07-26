@@ -5,8 +5,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../models/expense.dart';
 import '../models/saving_account.dart';
@@ -15,6 +13,7 @@ import '../models/category_budget.dart';
 import '../models/user_profile.dart';
 import '../models/user_settings.dart';
 import '../models/monthly_report.dart';
+import '../models/plan_item.dart';
 
 class BackupService {
   static const List<String> _boxNames = [
@@ -25,6 +24,7 @@ class BackupService {
     'userBox',
     'userSettingsBox',
     'monthlyReportsBox',
+    'planBox',
   ];
 
   static Future<void> exportBackup(BuildContext context) async {
@@ -49,11 +49,12 @@ class BackupService {
     backupData['monthlyReportsBox'] = Hive.box<MonthlyReport>(
       'monthlyReportsBox',
     ).values.toList();
+    backupData['planBox'] = Hive.box<PlanItem>('planBox').values.toList();
 
     String jsonString = jsonEncode(
       backupData,
       toEncodable: (Object? value) {
-        if (value is Expense)
+        if (value is Expense) {
           return {
             'amount': value.amount,
             'category': value.category,
@@ -61,8 +62,10 @@ class BackupService {
             'date': value.date.toIso8601String(),
             'type': value.type,
             'source': value.source,
+            'planId': value.planId,
           };
-        if (value is SavingAccount)
+        }
+        if (value is SavingAccount) {
           return {
             'name': value.name,
             'balance': value.balance,
@@ -70,26 +73,42 @@ class BackupService {
             'accountNumber': value.accountNumber,
             'accountHolderName': value.accountHolderName,
           };
-        if (value is TransactionCategory)
+        }
+        if (value is TransactionCategory) {
           return {'name': value.name, 'type': value.type};
-        if (value is CategoryBudget)
+        }
+        if (value is CategoryBudget) {
           return {
             'categoryName': value.categoryName,
             'limitAmount': value.limitAmount,
           };
+        }
         if (value is UserProfile) return {'name': value.name};
-        if (value is UserSettings)
+        if (value is UserSettings) {
           return {
             'payday': value.payday,
             'isNotificationEnabled': value.isNotificationEnabled,
           };
-        if (value is MonthlyReport)
+        }
+        if (value is MonthlyReport) {
           return {
             'month': value.month,
             'totalIncome': value.totalIncome,
             'totalExpense': value.totalExpense,
             'balance': value.balance,
           };
+        }
+        if (value is PlanItem) {
+          return {
+            'id': value.id,
+            'title': value.title,
+            'amount': value.amount,
+            'isPaid': value.isPaid,
+            'category': value.category,
+            'monthKey': value.monthKey,
+            'planType': value.planType,
+          };
+        }
         return value;
       },
     );
@@ -147,6 +166,7 @@ class BackupService {
           date: DateTime.parse(item['date']),
           type: item['type'],
           source: item['source'] ?? 'Budget Utama',
+          planId: item['planId'],
         ),
       );
 
@@ -200,6 +220,20 @@ class BackupService {
           totalIncome: item['totalIncome'],
           totalExpense: item['totalExpense'],
           balance: item['balance'],
+        ),
+      );
+
+      await _restoreBox<PlanItem>(
+        'planBox',
+        data['planBox'],
+        (item) => PlanItem(
+          id: item['id'],
+          title: item['title'],
+          amount: item['amount'],
+          isPaid: item['isPaid'],
+          category: item['category'],
+          monthKey: item['monthKey'],
+          planType: item['planType'] ?? 'expense',
         ),
       );
 

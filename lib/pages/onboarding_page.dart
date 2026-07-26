@@ -45,13 +45,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
       RegExp(r'[^0-9]'),
       '',
     );
-    if (cleanFood.isNotEmpty)
+    if (cleanFood.isNotEmpty) {
       budgetCtrl.setBudgetLimit("Makanan", double.tryParse(cleanFood) ?? 0.0);
-    if (cleanTransport.isNotEmpty)
+    }
+    if (cleanTransport.isNotEmpty) {
       budgetCtrl.setBudgetLimit(
         "Transportasi",
         double.tryParse(cleanTransport) ?? 0.0,
       );
+    }
 
     Navigator.pushReplacement(
       context,
@@ -108,8 +110,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     ),
                   ),
                   onPressed: () {
-                    if (_currentPage == 0 && _nameController.text.isEmpty)
+                    if (_currentPage == 0 && _nameController.text.isEmpty) {
                       return;
+                    }
                     if (_currentPage < 2) {
                       _pageController.nextPage(
                         duration: const Duration(milliseconds: 300),
@@ -166,7 +169,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           ),
           const SizedBox(height: 20),
           DropdownButtonFormField<int>(
-            value: _selectedPayday,
+            initialValue: _selectedPayday,
             decoration: InputDecoration(
               labelText: "Tanggal Gajian",
               filled: true,

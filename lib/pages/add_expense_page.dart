@@ -7,14 +7,18 @@ import '../controllers/expense_controller.dart';
 import '../controllers/category_controller.dart';
 import '../controllers/budget_controller.dart';
 import '../controllers/saving_controller.dart';
+import '../controllers/plan_controller.dart';
 import '../models/expense.dart';
+import '../models/plan_item.dart';
 import '../utils/currency_input_formatter.dart';
 
 class AddExpensePage extends StatefulWidget {
   final DateTime? fixedDate;
   final Expense? expenseToEdit;
+  final PlanItem? planToPay;
+  final String? savingDestination;
 
-  const AddExpensePage({super.key, this.fixedDate, this.expenseToEdit});
+  const AddExpensePage({super.key, this.fixedDate, this.expenseToEdit, this.planToPay, this.savingDestination});
 
   @override
   State<AddExpensePage> createState() => _AddExpensePageState();
@@ -65,6 +69,25 @@ class _AddExpensePageState extends State<AddExpensePage> {
       } else {
         _noteController.text = exp.note ?? '';
       }
+    } else if (widget.planToPay != null) {
+      final plan = widget.planToPay!;
+      _amountController.text = NumberFormat.decimalPattern("id_ID").format(plan.amount.toInt());
+      if (plan.planType == 'saving') {
+        _selectedType = 'transfer';
+        _selectedSource = 'Budget Utama';
+        _selectedDestination = plan.category; // Category contains the saving account name
+        _noteController.text = plan.title;
+      } else {
+        _selectedType = 'expense';
+        _selectedCategory = plan.category;
+        _noteController.text = plan.title;
+      }
+      _selectedDate = widget.fixedDate ?? DateTime.now();
+    } else if (widget.savingDestination != null) {
+      _selectedType = 'transfer';
+      _selectedSource = 'Budget Utama';
+      _selectedDestination = widget.savingDestination!;
+      _selectedDate = widget.fixedDate ?? DateTime.now();
     } else {
       _selectedDate = widget.fixedDate ?? DateTime.now();
     }
@@ -84,7 +107,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
     if (categories.isNotEmpty) {
       setState(() {
-        if (widget.expenseToEdit == null ||
+        if ((widget.expenseToEdit == null && widget.planToPay == null) ||
             !categories.any((c) => c.name == _selectedCategory)) {
           _selectedCategory = categories.first.name;
         }
@@ -105,8 +128,17 @@ class _AddExpensePageState extends State<AddExpensePage> {
       ...savingController.savings.map((s) => s.name),
     ];
 
-    if (!accountOptions.contains(_selectedDestination))
+    if (!accountOptions.contains(_selectedDestination)) {
       _selectedDestination = accountOptions.first;
+    }
+    
+    final double sourceBalance = _selectedSource == 'Budget Utama' 
+        ? context.watch<ExpenseController>().balance 
+        : (savingController.savings.where((s) => s.name == _selectedSource).firstOrNull?.balance ?? 0.0);
+
+    final double destBalance = _selectedDestination == 'Budget Utama' 
+        ? context.watch<ExpenseController>().balance 
+        : (savingController.savings.where((s) => s.name == _selectedDestination).firstOrNull?.balance ?? 0.0);
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
@@ -242,7 +274,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          value: _selectedCategory,
+                          initialValue: _selectedCategory,
                           decoration: InputDecoration(
                             isDense: true, // 👈 Membuat dropdown lebih compact
                             filled: true,
@@ -295,7 +327,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                 ),
                               ),
                               DropdownButtonFormField<String>(
-                                value: _selectedSource,
+                                initialValue: _selectedSource,
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
                                   isDense: true,
@@ -317,6 +349,15 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                 onChanged: (val) =>
                                     setState(() => _selectedSource = val!),
                               ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Saldo: ${CurrencyInputFormatter.format(sourceBalance)}",
+                                style: TextStyle(
+                                  color: Colors.blue.shade700,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                               const Divider(height: 16), // 👈 Dirapatkan
                               const Text(
                                 "Ke (Tujuan Dana)",
@@ -327,7 +368,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                 ),
                               ),
                               DropdownButtonFormField<String>(
-                                value: _selectedDestination,
+                                initialValue: _selectedDestination,
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
                                   isDense: true,
@@ -349,6 +390,15 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                 onChanged: (val) =>
                                     setState(() => _selectedDestination = val!),
                               ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Saldo: ${CurrencyInputFormatter.format(destBalance)}",
+                                style: TextStyle(
+                                  color: Colors.blue.shade700,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -363,7 +413,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          value: _selectedSource,
+                          initialValue: _selectedSource,
                           decoration: InputDecoration(
                             isDense: true, // 👈 Membuat dropdown lebih compact
                             filled: true,
@@ -388,6 +438,18 @@ class _AddExpensePageState extends State<AddExpensePage> {
                               .toList(),
                           onChanged: (val) =>
                               setState(() => _selectedSource = val!),
+                        ),
+                        const SizedBox(height: 4),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Text(
+                            "Saldo: ${CurrencyInputFormatter.format(sourceBalance)}",
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
 
@@ -516,6 +578,34 @@ class _AddExpensePageState extends State<AddExpensePage> {
       );
       return;
     }
+    
+    // Validasi saldo
+    if (_selectedType == 'transfer' || _selectedType == 'expense') {
+      double sourceBal = 0.0;
+      if (_selectedSource == 'Budget Utama') {
+        sourceBal = context.read<ExpenseController>().balance;
+      } else {
+        final savingCtrl = context.read<SavingController>();
+        try {
+          sourceBal = savingCtrl.savings.firstWhere((s) => s.name == _selectedSource).balance;
+        } catch (_) {}
+      }
+      
+      // Jika ini adalah mode Edit Transfer, kita perlu mengembalikan saldo lama terlebih dahulu
+      // sebelum melakukan pengecekan, atau mengecualikan amount lama.
+      // Untuk sederhananya, kita asumsikan validation strict:
+      double effectiveBal = sourceBal;
+      if (widget.expenseToEdit != null && widget.expenseToEdit!.source == _selectedSource) {
+         effectiveBal += widget.expenseToEdit!.amount;
+      }
+
+      if (amount > effectiveBal) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Saldo $_selectedSource tidak mencukupi!')),
+        );
+        return;
+      }
+    }
 
     if (_selectedType == 'expense' && _selectedSource == 'Budget Utama') {
       final budgetController = context.read<BudgetController>();
@@ -631,8 +721,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
     }
 
     String finalNote = _noteController.text.trim();
-    if (_selectedType == 'transfer')
+    if (_selectedType == 'transfer') {
       finalNote = "Dari $_selectedSource ke $_selectedDestination. $finalNote";
+    }
 
     if (widget.expenseToEdit != null) {
       final oldExp = widget.expenseToEdit!;
@@ -658,14 +749,25 @@ class _AddExpensePageState extends State<AddExpensePage> {
         date: _selectedDate,
         type: _selectedType,
         source: _selectedSource,
+        planId: widget.planToPay?.id,
       );
       expenseCtrl.addExpense(expense);
+      
+      // Jika dari Planning, tandai sebagai sudah dibayar
+      if (widget.planToPay != null) {
+        final planCtrl = context.read<PlanController>();
+        final plan = widget.planToPay!;
+        plan.isPaid = true;
+        plan.save();
+        planCtrl.updatePlanByKey(plan.key, plan);
+      }
+      
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Transaksi disimpan!')));
     }
 
-    Navigator.pop(context);
+    Navigator.pop(context, true); // Return true to indicate success
   }
 
   void _updateSavingBalance(

@@ -47,7 +47,29 @@ class NotificationService {
     await _notificationsPlugin.cancel(0);
   }
 
-  static tz.TZDateTime _nextInstanceOfEightPM() {
+  static Future<void> skipTodayReminder() async {
+    await cancelNotification();
+    await _notificationsPlugin.zonedSchedule(
+      0,
+      'Lupa Catat Sesuatu? 🤔',
+      'Yuk, luangkan 1 menit untuk mencatat transaksi hari ini agar budget tetap aman!',
+      _nextInstanceOfEightPM(skipToday: true),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'daily_reminder',
+          'Daily Reminders',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
+  static tz.TZDateTime _nextInstanceOfEightPM({bool skipToday = false}) {
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate = tz.TZDateTime(
       tz.local,
@@ -57,7 +79,7 @@ class NotificationService {
       20,
       0,
     );
-    if (scheduledDate.isBefore(now)) {
+    if (scheduledDate.isBefore(now) || skipToday) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
     return scheduledDate;

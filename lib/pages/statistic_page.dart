@@ -8,6 +8,7 @@ import '../controllers/category_controller.dart';
 import '../controllers/budget_controller.dart';
 import '../utils/currency_input_formatter.dart';
 import '../models/expense.dart';
+import '../services/pdf_service.dart';
 
 class StatisticPage extends StatefulWidget {
   const StatisticPage({super.key});
@@ -89,6 +90,25 @@ class _StatisticPageState extends State<StatisticPage> {
           "Statistik & Budget",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'Ekspor ke PDF',
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Menyiapkan dokumen PDF...')),
+              );
+              await PdfService.exportAndShareMonthlyReport(
+                month: currentCycleStart.month,
+                year: currentCycleStart.year,
+                totalIncome: income,
+                totalExpense: expense,
+                finalBalance: balance,
+                expenses: timeFilteredExpenses, // We pass all expenses for this time period
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Stack(
@@ -347,10 +367,11 @@ class _StatisticPageState extends State<StatisticPage> {
         double spent = currentCycleExpenses
             .where((e) => e.category == cat.name && e.type == "expense")
             .fold(0.0, (s, e) => s + e.amount);
-        if (spent > limit)
+        if (spent > limit) {
           overLimitCount++;
-        else
+        } else {
           underLimitCount++;
+        }
       }
     }
 

@@ -1,50 +1,53 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'expense.dart';
+part of 'debt.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class ExpenseAdapter extends TypeAdapter<Expense> {
+class DebtAdapter extends TypeAdapter<Debt> {
   @override
-  final int typeId = 0;
+  final int typeId = 9;
 
   @override
-  Expense read(BinaryReader reader) {
+  Debt read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Expense(
-      amount: fields[0] as double,
-      category: fields[1] as String,
-      note: fields[2] as String?,
-      date: fields[3] as DateTime,
-      type: fields[4] as String,
-      source: fields[5] == null ? 'Budget Utama' : fields[5] as String,
-      planId: fields[6] as String?,
+    return Debt(
+      id: fields[0] as String?,
+      type: fields[1] as String,
+      personName: fields[2] as String,
+      amount: fields[3] as double,
+      paidAmount: fields[4] as double,
+      createdAt: fields[5] as DateTime,
+      dueDate: fields[6] as DateTime?,
+      isSettled: fields[7] as bool,
     );
   }
 
   @override
-  void write(BinaryWriter writer, Expense obj) {
+  void write(BinaryWriter writer, Debt obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
-      ..write(obj.amount)
+      ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.category)
-      ..writeByte(2)
-      ..write(obj.note)
-      ..writeByte(3)
-      ..write(obj.date)
-      ..writeByte(4)
       ..write(obj.type)
+      ..writeByte(2)
+      ..write(obj.personName)
+      ..writeByte(3)
+      ..write(obj.amount)
+      ..writeByte(4)
+      ..write(obj.paidAmount)
       ..writeByte(5)
-      ..write(obj.source)
+      ..write(obj.createdAt)
       ..writeByte(6)
-      ..write(obj.planId);
+      ..write(obj.dueDate)
+      ..writeByte(7)
+      ..write(obj.isSettled);
   }
 
   @override
@@ -53,7 +56,7 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ExpenseAdapter &&
+      other is DebtAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

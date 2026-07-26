@@ -275,7 +275,7 @@ class SettingsPage extends StatelessWidget {
                         "Ingatkan saya jam 20:00 jika belum catat transaksi hari ini",
                       ),
                       value: userController.isNotificationEnabled,
-                      activeColor: Colors.blue.shade700,
+                      activeThumbColor: Colors.blue.shade700,
                       onChanged: (bool value) {
                         userController.toggleNotification(value);
                       },
@@ -342,7 +342,7 @@ class SettingsPage extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text("Siklus Bulanan (Gajian)"),
         content: DropdownButtonFormField<int>(
-          value: selectedDay,
+          initialValue: selectedDay,
           decoration: const InputDecoration(labelText: "Pilih Tanggal"),
           items: List.generate(
             28,

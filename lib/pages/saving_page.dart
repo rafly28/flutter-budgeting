@@ -7,6 +7,7 @@ import '../controllers/saving_controller.dart';
 import '../controllers/expense_controller.dart';
 import '../models/saving_account.dart';
 import '../utils/currency_input_formatter.dart';
+import 'add_expense_page.dart';
 
 class SavingsPage extends StatefulWidget {
   const SavingsPage({super.key});
@@ -225,38 +226,77 @@ class _SavingsPageState extends State<SavingsPage> {
                                       ),
                                     ],
                                   ),
-                                  // Tombol Copy
-                                  GestureDetector(
-                                    onTap: () {
-                                      if (account.accountNumber.isNotEmpty) {
-                                        Clipboard.setData(
-                                          ClipboardData(
-                                            text: account.accountNumber,
+                                  // Tombol Aksi Cepat (Nabung & Copy)
+                                  Row(
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => AddExpensePage(
+                                                savingDestination: account.name,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(10),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.1),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
                                           ),
-                                        );
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Nomor Rekening Disalin!',
+                                          child: Text(
+                                            "Nabung",
+                                            style: TextStyle(
+                                              color: _getCardColors(index)[0],
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
                                             ),
                                           ),
-                                        );
-                                      }
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(10),
+                                        ),
                                       ),
-                                      child: const Icon(
-                                        Icons.copy,
-                                        color: Colors.white,
-                                        size: 20,
+                                      const SizedBox(width: 10),
+                                      GestureDetector(
+                                        onTap: () {
+                                          if (account.accountNumber.isNotEmpty) {
+                                            Clipboard.setData(
+                                              ClipboardData(
+                                                text: account.accountNumber,
+                                              ),
+                                            );
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Nomor Rekening Disalin!',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: const Icon(
+                                            Icons.copy,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -369,8 +409,9 @@ class _SavingsPageState extends State<SavingsPage> {
   ) {
     // 1. Filter transaksi khusus untuk kartu ini (Sebagai pengirim ATAU penerima)
     final accountExpenses = controller.expenses.where((e) {
-      if (e.source == accountName)
+      if (e.source == accountName) {
         return true; // Jika kartu ini sebagai pengirim
+      }
 
       // Jika transfer, cek apakah kartu ini adalah penerimanya (dari catatan)
       if (e.type == 'transfer' &&

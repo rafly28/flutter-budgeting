@@ -31,7 +31,7 @@ class ExpenseController extends ChangeNotifier {
     if (expense.date.year == now.year &&
         expense.date.month == now.month &&
         expense.date.day == now.day) {
-      NotificationService.cancelNotification();
+      NotificationService.skipTodayReminder();
     }
     notifyListeners();
   }
@@ -63,17 +63,29 @@ class ExpenseController extends ChangeNotifier {
     }
   }
 
-  // Hitung total pemasukan (semua data, bukan hanya bulan ini)
-  double get totalIncome => _box.values
-      .where((e) => e.type == "income")
-      .fold(0.0, (sum, e) => sum + e.amount);
+  // Hitung total pemasukan (semua data)
+  double get totalIncome {
+    double baseIncome = _box.values
+        .where((e) => e.type == "income" && e.source == 'Budget Utama')
+        .fold(0.0, (sum, e) => sum + e.amount);
+    double transferIn = _box.values
+        .where((e) => e.type == 'transfer' && e.note != null && e.note!.contains("ke Budget Utama"))
+        .fold(0.0, (sum, e) => sum + e.amount);
+    return baseIncome + transferIn;
+  }
 
-  // Hitung total pengeluaran (semua data, bukan hanya bulan ini)
-  double get totalExpense => _box.values
-      .where((e) => e.type == "expense")
-      .fold(0.0, (sum, e) => sum + e.amount);
+  // Hitung total pengeluaran (semua data)
+  double get totalExpense {
+    double baseExpense = _box.values
+        .where((e) => e.type == "expense" && e.source == 'Budget Utama')
+        .fold(0.0, (sum, e) => sum + e.amount);
+    double transferOut = _box.values
+        .where((e) => e.type == 'transfer' && e.source == 'Budget Utama')
+        .fold(0.0, (sum, e) => sum + e.amount);
+    return baseExpense + transferOut;
+  }
 
-  // Hitung saldo akhir (semua data, bukan hanya bulan ini)
+  // Hitung saldo akhir (semua data)
   double get balance => totalIncome - totalExpense;
 
   // Tutup bulan → simpan laporan bulanan

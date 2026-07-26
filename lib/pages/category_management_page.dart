@@ -104,7 +104,7 @@ class CategoryManagementPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 15),
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   decoration: InputDecoration(
                     labelText: 'Tipe',
                     filled: true,

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../controllers/expense_controller.dart';
 import '../controllers/user_controller.dart';
+import '../controllers/plan_controller.dart';
 import '../models/expense.dart';
 import '../widgets/finance_summary_card.dart'; // Jika masih dipakai, biarkan
 import '../utils/currency_input_formatter.dart';
@@ -12,6 +13,8 @@ import 'add_expense_page.dart';
 import 'settings_page.dart';
 import 'saving_page.dart';
 import 'statistic_page.dart';
+import 'planning_page.dart';
+import 'debt_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -40,13 +43,22 @@ class DashboardPage extends StatelessWidget {
       currentCycleEnd,
     );
 
+    double transferOut = cycleExpenses
+        .where((e) => e.type == 'transfer' && e.source == 'Budget Utama')
+        .fold(0.0, (s, e) => s + e.amount);
+    double transferIn = cycleExpenses
+        .where((e) => e.type == 'transfer' && e.note != null && e.note!.contains("ke Budget Utama"))
+        .fold(0.0, (s, e) => s + e.amount);
+
     final totalIncome = cycleExpenses
-        .where((e) => e.type == "income")
-        .fold(0.0, (sum, e) => sum + e.amount);
+        .where((e) => e.type == "income" && e.source == 'Budget Utama')
+        .fold(0.0, (sum, e) => sum + e.amount) + transferIn;
+        
     final totalExpense = cycleExpenses
-        .where((e) => e.type == "expense")
-        .fold(0.0, (sum, e) => sum + e.amount);
-    final balance = totalIncome - totalExpense;
+        .where((e) => e.type == "expense" && e.source == 'Budget Utama')
+        .fold(0.0, (sum, e) => sum + e.amount) + transferOut;
+        
+    final balance = expenseController.balance;
 
     // 🎯 TRANSAKSI KHUSUS HARI INI
     final todayExpenses = expenseController.expenses
@@ -133,8 +145,10 @@ class DashboardPage extends StatelessWidget {
           // 🔹 BAGIAN 2: MENU CEPAT (GRID)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            child: Wrap(
+              alignment: WrapAlignment.spaceAround,
+              spacing: 10,
+              runSpacing: 15,
               children: [
                 _buildQuickMenu(
                   context,
@@ -156,6 +170,20 @@ class DashboardPage extends StatelessWidget {
                   Icons.account_balance_wallet,
                   Colors.teal,
                   const SavingsPage(),
+                ),
+                _buildQuickMenu(
+                  context,
+                  "Planning",
+                  Icons.fact_check,
+                  Colors.blue,
+                  const PlanningPage(),
+                ),
+                _buildQuickMenu(
+                  context,
+                  "Hutang",
+                  Icons.handshake,
+                  Colors.indigo,
+                  const DebtPage(),
                 ),
               ],
             ),
@@ -231,6 +259,9 @@ class DashboardPage extends StatelessWidget {
                           ),
                         ),
                         onDismissed: (_) {
+                          if (exp.planId != null) {
+                            context.read<PlanController>().unmarkPaidByPlanId(exp.planId!);
+                          }
                           expenseController.removeExpense(
                             expenseController.expenses.indexOf(exp),
                           );
