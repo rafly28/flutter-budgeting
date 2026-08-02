@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../controllers/user_controller.dart';
 import '../controllers/saving_controller.dart';
@@ -19,6 +20,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   final TextEditingController _nameController = TextEditingController();
   int _selectedPayday = 1;
+  bool _resetBalanceOnPayday = false;
   final TextEditingController _initialBalanceCtrl = TextEditingController();
   final TextEditingController _foodBudgetCtrl = TextEditingController();
   final TextEditingController _transportBudgetCtrl = TextEditingController();
@@ -28,8 +30,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
     final savingCtrl = context.read<SavingController>();
     final budgetCtrl = context.read<BudgetController>();
 
-    userCtrl.setUser(_nameController.text.trim()); // 👈 Memanggil setUser
-    userCtrl.setPayday(_selectedPayday); // 👈 Memanggil setPayday
+    userCtrl.setUser(_nameController.text.trim());
+    userCtrl.setPayday(_selectedPayday);
+    userCtrl.toggleResetBalance(_resetBalanceOnPayday);
 
     final cleanBalance = _initialBalanceCtrl.text.replaceAll(
       RegExp(r'[^0-9]'),
@@ -167,26 +170,89 @@ class _OnboardingPageState extends State<OnboardingPage> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          DropdownButtonFormField<int>(
-            initialValue: _selectedPayday,
-            decoration: InputDecoration(
-              labelText: "Tanggal Gajian",
-              filled: true,
-              fillColor: Colors.grey.shade50,
-              border: OutlineInputBorder(
+          const Text(
+            "Tanggal Gajian",
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                builder: (BuildContext builder) {
+                  return Container(
+                    height: 250,
+                    color: Colors.white,
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            TextButton(
+                              child: const Text('Batal'),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                            TextButton(
+                              child: const Text('Simpan'),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                        Expanded(
+                          child: CupertinoPicker(
+                            itemExtent: 40,
+                            scrollController: FixedExtentScrollController(
+                              initialItem: _selectedPayday - 1,
+                            ),
+                            onSelectedItemChanged: (int index) {
+                              setState(() {
+                                _selectedPayday = index + 1;
+                              });
+                            },
+                            children: List<Widget>.generate(31, (int index) {
+                              return Center(
+                                child: Text(
+                                  'Tanggal ${index + 1}',
+                                  style: const TextStyle(fontSize: 20),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(15),
-                borderSide: BorderSide.none,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("Tanggal $_selectedPayday", style: const TextStyle(fontSize: 16)),
+                  const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                ],
               ),
             ),
-            items: List.generate(
-              28,
-              (i) => DropdownMenuItem(
-                value: i + 1,
-                child: Text("Tanggal ${i + 1}"),
-              ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(15),
             ),
-            onChanged: (val) => setState(() => _selectedPayday = val!),
+            child: SwitchListTile(
+              title: const Text("Mode Saldo: Reset Tiap Gajian", style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text("Aktifkan jika ingin saldo di-reset jadi 0 tiap tanggal gajian. Jika mati, saldo berlanjut seperti m-Banking.", style: TextStyle(fontSize: 12)),
+              value: _resetBalanceOnPayday,
+              activeColor: Colors.blue.shade700,
+              onChanged: (val) => setState(() => _resetBalanceOnPayday = val),
+            ),
           ),
         ],
       ),

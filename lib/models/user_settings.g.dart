@@ -19,17 +19,20 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
     return UserSettings(
       payday: fields[0] as int,
       isNotificationEnabled: fields[1] == null ? true : fields[1] as bool,
+      resetBalanceOnPayday: fields[2] == null ? false : fields[2] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserSettings obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(3)
       ..writeByte(0)
       ..write(obj.payday)
       ..writeByte(1)
-      ..write(obj.isNotificationEnabled);
+      ..write(obj.isNotificationEnabled)
+      ..writeByte(2)
+      ..write(obj.resetBalanceOnPayday);
   }
 
   @override

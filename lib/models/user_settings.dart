@@ -10,10 +10,14 @@ class UserSettings extends HiveObject {
   int payday; // Menyimpan tanggal gajian/tutup buku (contoh: 25)
 
   @HiveField(1, defaultValue: true)
-  bool isNotificationEnabled; // 👈 Tambahkan ini
+  bool isNotificationEnabled;
+
+  @HiveField(2, defaultValue: false)
+  bool resetBalanceOnPayday;
 
   UserSettings({
     required this.payday,
-    this.isNotificationEnabled = true, // Default nyala
+    this.isNotificationEnabled = true,
+    this.resetBalanceOnPayday = false,
   });
 }

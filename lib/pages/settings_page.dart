@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -21,6 +22,7 @@ class SettingsPage extends StatelessWidget {
 
     final userName = userController.user?.name ?? 'User';
     final payday = userController.payday;
+    final resetBalance = userController.resetBalanceOnPayday;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
@@ -131,6 +133,20 @@ class SettingsPage extends StatelessWidget {
                             userController,
                             payday,
                           ),
+                        ),
+                        const Divider(height: 1, indent: 50, endIndent: 16),
+                        SwitchListTile(
+                          secondary: Icon(
+                            Icons.refresh_rounded,
+                            color: Colors.blue.shade700,
+                          ),
+                          title: const Text("Mode Saldo: Reset Tiap Gajian"),
+                          subtitle: const Text("Aktifkan jika ingin saldo di-reset jadi 0 tiap tanggal gajian."),
+                          value: resetBalance,
+                          activeColor: Colors.blue.shade700,
+                          onChanged: (val) {
+                            userController.toggleResetBalance(val);
+                          },
                         ),
                       ],
                     ),
@@ -336,43 +352,53 @@ class SettingsPage extends StatelessWidget {
     int currentPayday,
   ) {
     int selectedDay = currentPayday;
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Siklus Bulanan (Gajian)"),
-        content: DropdownButtonFormField<int>(
-          initialValue: selectedDay,
-          decoration: const InputDecoration(labelText: "Pilih Tanggal"),
-          items: List.generate(
-            28,
-            (index) => DropdownMenuItem(
-              value: index + 1,
-              child: Text("Tanggal ${index + 1}"),
-            ),
-          ),
-          onChanged: (val) => selectedDay = val ?? currentPayday,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade700,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+      builder: (BuildContext builder) {
+        return Container(
+          height: 250,
+          color: Colors.white,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  TextButton(
+                    child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      controller.setPayday(selectedDay);
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
               ),
-            ),
-            onPressed: () {
-              controller.setPayday(selectedDay); // 👈 Memanggil setPayday
-              Navigator.pop(context);
-            },
-            child: const Text("Simpan", style: TextStyle(color: Colors.white)),
+              Expanded(
+                child: CupertinoPicker(
+                  itemExtent: 40,
+                  scrollController: FixedExtentScrollController(
+                    initialItem: currentPayday - 1,
+                  ),
+                  onSelectedItemChanged: (int index) {
+                    selectedDay = index + 1;
+                  },
+                  children: List<Widget>.generate(31, (int index) {
+                    return Center(
+                      child: Text(
+                        'Tanggal ${index + 1}',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

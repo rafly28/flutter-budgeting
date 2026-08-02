@@ -58,7 +58,9 @@ class DashboardPage extends StatelessWidget {
         .where((e) => e.type == "expense" && e.source == 'Budget Utama')
         .fold(0.0, (sum, e) => sum + e.amount) + transferOut;
         
-    final balance = expenseController.balance;
+    final balance = userController.resetBalanceOnPayday
+        ? totalIncome - totalExpense
+        : expenseController.balance;
 
     // 🎯 TRANSAKSI KHUSUS HARI INI
     final todayExpenses = expenseController.expenses

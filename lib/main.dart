@@ -79,8 +79,10 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => SavingController()),
         ChangeNotifierProvider(create: (_) => PlanController()),
         ChangeNotifierProxyProvider<ExpenseController, DebtController>(
-          create: (context) => DebtController(context.read<ExpenseController>()),
-          update: (context, expenseController, previous) => previous ?? DebtController(expenseController),
+          create: (context) =>
+              DebtController(context.read<ExpenseController>()),
+          update: (context, expenseController, previous) =>
+              previous ?? DebtController(expenseController),
         ),
       ],
       child: MainApp(hasUser: hasUser),

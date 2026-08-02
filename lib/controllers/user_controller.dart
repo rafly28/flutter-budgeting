@@ -16,6 +16,10 @@ class UserController extends ChangeNotifier {
       ? (_settingsBox.getAt(0)?.isNotificationEnabled ?? true)
       : true;
 
+  bool get resetBalanceOnPayday => _settingsBox.isNotEmpty
+      ? (_settingsBox.getAt(0)?.resetBalanceOnPayday ?? false)
+      : false;
+
   // Secara default tanggal 1 jika user belum mengatur
   int get payday => _settingsBox.isNotEmpty ? _settingsBox.getAt(0)!.payday : 1;
 
@@ -43,7 +47,7 @@ class UserController extends ChangeNotifier {
       notifyListeners();
     } else {
       // Jika box kosong (saat onboarding belum selesai sempurna)
-      _settingsBox.add(UserSettings(payday: 1, isNotificationEnabled: value));
+      _settingsBox.add(UserSettings(payday: 1, isNotificationEnabled: value, resetBalanceOnPayday: false));
     }
   }
 
@@ -52,7 +56,20 @@ class UserController extends ChangeNotifier {
     if (_settingsBox.isEmpty) {
       _settingsBox.add(UserSettings(payday: date));
     } else {
-      _settingsBox.putAt(0, UserSettings(payday: date));
+      final settings = _settingsBox.getAt(0)!;
+      settings.payday = date;
+      settings.save();
+    }
+    notifyListeners();
+  }
+
+  void toggleResetBalance(bool value) {
+    if (_settingsBox.isEmpty) {
+      _settingsBox.add(UserSettings(payday: 1, resetBalanceOnPayday: value));
+    } else {
+      final settings = _settingsBox.getAt(0)!;
+      settings.resetBalanceOnPayday = value;
+      settings.save();
     }
     notifyListeners();
   }
