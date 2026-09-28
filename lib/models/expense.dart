@@ -25,6 +25,9 @@ class Expense extends HiveObject {
   @HiveField(6)
   String? planId;
 
+  @HiveField(7)
+  String? debtId;
+
   Expense({
     required this.amount,
     required this.category,
@@ -33,5 +36,6 @@ class Expense extends HiveObject {
     required this.type,
     this.source = 'Budget Utama',
     this.planId,
+    this.debtId,
   });
 }

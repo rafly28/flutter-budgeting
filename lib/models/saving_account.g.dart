@@ -22,13 +22,19 @@ class SavingAccountAdapter extends TypeAdapter<SavingAccount> {
       bankName: fields[2] == null ? '' : fields[2] as String,
       accountNumber: fields[3] == null ? '' : fields[3] as String,
       accountHolderName: fields[4] == null ? '' : fields[4] as String,
+      pocketCategory: fields[5] == null ? 'savings' : fields[5] as String,
+      assetType: fields[6] == null ? 'cash' : fields[6] as String,
+      unitCount: fields[7] == null ? 0.0 : fields[7] as double,
+      avgBuyPrice: fields[8] == null ? 0.0 : fields[8] as double,
+      lastMarketPrice: fields[9] == null ? 0.0 : fields[9] as double,
+      symbol: fields[10] == null ? '' : fields[10] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, SavingAccount obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -38,7 +44,19 @@ class SavingAccountAdapter extends TypeAdapter<SavingAccount> {
       ..writeByte(3)
       ..write(obj.accountNumber)
       ..writeByte(4)
-      ..write(obj.accountHolderName);
+      ..write(obj.accountHolderName)
+      ..writeByte(5)
+      ..write(obj.pocketCategory)
+      ..writeByte(6)
+      ..write(obj.assetType)
+      ..writeByte(7)
+      ..write(obj.unitCount)
+      ..writeByte(8)
+      ..write(obj.avgBuyPrice)
+      ..writeByte(9)
+      ..write(obj.lastMarketPrice)
+      ..writeByte(10)
+      ..write(obj.symbol);
   }
 
   @override

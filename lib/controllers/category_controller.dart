@@ -11,16 +11,16 @@ class CategoryController extends ChangeNotifier {
     _seedDefaultCategories();
   }
 
-  // Memberikan kategori bawaan jika database masih kosong
   void _seedDefaultCategories() {
     if (_box.isEmpty) {
       final defaults = [
-        TransactionCategory(name: 'Gaji', type: 'income'),
-        TransactionCategory(name: 'Bonus', type: 'income'),
-        TransactionCategory(name: 'Makanan', type: 'expense'),
-        TransactionCategory(name: 'Transportasi', type: 'expense'),
-        TransactionCategory(name: 'Hiburan', type: 'expense'),
-        TransactionCategory(name: 'Tagihan', type: 'expense'),
+        TransactionCategory(name: 'Gaji', type: 'income', iconCodePoint: 0xf0204, iconFontFamily: 'MaterialIcons', budgetGroup: 'needs'),
+        TransactionCategory(name: 'Bonus', type: 'income', iconCodePoint: 0xf0423, iconFontFamily: 'MaterialIcons', budgetGroup: 'needs'),
+        TransactionCategory(name: 'Makanan', type: 'expense', iconCodePoint: 0xf0112, iconFontFamily: 'MaterialIcons', budgetGroup: 'needs'),
+        TransactionCategory(name: 'Transportasi', type: 'expense', iconCodePoint: 0xf0481, iconFontFamily: 'MaterialIcons', budgetGroup: 'needs'),
+        TransactionCategory(name: 'Hiburan', type: 'expense', iconCodePoint: 0xf03b5, iconFontFamily: 'MaterialIcons', budgetGroup: 'wants'),
+        TransactionCategory(name: 'Tabungan', type: 'expense', iconCodePoint: 0xf053a, iconFontFamily: 'MaterialIcons', budgetGroup: 'savings'),
+        TransactionCategory(name: 'Tagihan', type: 'expense', iconCodePoint: 0xf0140, iconFontFamily: 'MaterialIcons', budgetGroup: 'needs'),
       ];
       for (var cat in defaults) {
         _box.add(cat);
@@ -28,30 +28,42 @@ class CategoryController extends ChangeNotifier {
     }
   }
 
-  // Ambil list kategori pemasukan
   List<TransactionCategory> get incomeCategories =>
       _box.values.where((c) => c.type == 'income').toList();
 
-  // Ambil list kategori pengeluaran
   List<TransactionCategory> get expenseCategories =>
       _box.values.where((c) => c.type == 'expense').toList();
 
-  // CREATE
-  void addCategory(String name, String type) {
-    _box.add(TransactionCategory(name: name, type: type));
+  TransactionCategory? findByName(String name) {
+    try {
+      return _box.values.firstWhere((c) => c.name == name);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void addCategory(String name, String type, {int? iconCodePoint, String? iconFontFamily, String budgetGroup = 'needs'}) {
+    _box.add(TransactionCategory(
+      name: name,
+      type: type,
+      iconCodePoint: iconCodePoint,
+      iconFontFamily: iconFontFamily,
+      budgetGroup: budgetGroup,
+    ));
     notifyListeners();
   }
 
-  // UPDATE
-  void updateCategory(TransactionCategory category, String newName) {
+  void updateCategory(TransactionCategory category, String newName, {int? iconCodePoint, String? iconFontFamily, String? budgetGroup}) {
     category.name = newName;
-    category.save(); // Fitur canggih dari HiveObject
+    if (iconCodePoint != null) category.iconCodePoint = iconCodePoint;
+    if (iconFontFamily != null) category.iconFontFamily = iconFontFamily;
+    if (budgetGroup != null) category.budgetGroup = budgetGroup;
+    category.save();
     notifyListeners();
   }
 
-  // DELETE
   void deleteCategory(TransactionCategory category) {
-    category.delete(); // Fitur canggih dari HiveObject
+    category.delete();
     notifyListeners();
   }
 }

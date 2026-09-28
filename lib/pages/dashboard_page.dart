@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:toastification/toastification.dart';
 
 import '../controllers/expense_controller.dart';
 import '../controllers/user_controller.dart';
 import '../controllers/plan_controller.dart';
+import '../controllers/category_controller.dart';
+import '../controllers/debt_controller.dart';
 import '../models/expense.dart';
 import '../widgets/finance_summary_card.dart'; // Jika masih dipakai, biarkan
 import '../utils/currency_input_formatter.dart';
@@ -23,6 +28,7 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final expenseController = context.watch<ExpenseController>();
     final userController = context.watch<UserController>();
+    final categoryController = context.watch<CategoryController>();
 
     final user = userController.user;
     final int payday = userController.payday;
@@ -77,9 +83,9 @@ class DashboardPage extends StatelessWidget {
         .fold(0.0, (s, e) => s + e.amount);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
         toolbarHeight: 80,
         title: Column(
@@ -96,19 +102,19 @@ class DashboardPage extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               DateFormat('EEEE, d MMMM y', 'id_ID').format(now),
-              style: const TextStyle(fontSize: 14, color: Colors.white70),
+              style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
             ),
           ],
-        ),
+        ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
+            icon: const Icon(FluentIcons.settings_24_regular, color: Colors.white),
             tooltip: 'Pengaturan',
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SettingsPage()),
             ),
-          ),
+          ).animate().fadeIn(delay: 200.ms),
         ],
       ),
       body: Column(
@@ -120,7 +126,7 @@ class DashboardPage extends StatelessWidget {
               Container(
                 height: 100, // Memberikan efek biru di belakang kartu
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade700,
+                  color: Theme.of(context).colorScheme.primary,
                   borderRadius: const BorderRadius.vertical(
                     bottom: Radius.circular(30),
                   ),
@@ -138,56 +144,107 @@ class DashboardPage extends StatelessWidget {
                   balance: balance,
                   income: totalIncome,
                   expense: totalExpense,
-                ),
+                  isHidden: userController.isBalanceHidden,
+                  onToggleVisibility: () => userController.toggleBalanceVisibility(),
+                ).animate().scale(delay: 200.ms, duration: 400.ms, curve: Curves.easeOutBack),
               ),
             ],
           ),
+
+          // 🔹 50-30-20 INDICATOR (tampil jika mode pocket_50_30_20)
+          if (userController.budgetingMode == 'pocket_50_30_20') ...[
+            const SizedBox(height: 12),
+            Builder(builder: (context) {
+              double realNeeds = 0;
+              double realWants = 0;
+              double realSavings = 0;
+              for (final e in cycleExpenses.where((e) => e.type == 'expense')) {
+                final catList = categoryController.expenseCategories;
+                final cat = catList.where((c) => c.name == e.category).firstOrNull;
+                final group = cat?.budgetGroup ?? 'needs';
+                if (group == 'wants') realWants += e.amount;
+                else if (group == 'savings') realSavings += e.amount;
+                else realNeeds += e.amount;
+              }
+              final targetNeeds = totalIncome * 0.50;
+              final targetWants = totalIncome * 0.30;
+              final targetSavings = totalIncome * 0.20;
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Anggaran 50-30-20',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        const SizedBox(height: 12),
+                        _build5030Row('Kebutuhan 50%', realNeeds, targetNeeds, Colors.blue.shade600),
+                        const SizedBox(height: 10),
+                        _build5030Row('Keinginan 30%', realWants, targetWants, Colors.orange.shade600),
+                        const SizedBox(height: 10),
+                        _build5030Row('Tabungan  20%', realSavings, targetSavings, Colors.green.shade700),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
 
           const SizedBox(height: 15),
           // 🔹 BAGIAN 2: MENU CEPAT (GRID)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Wrap(
-              alignment: WrapAlignment.spaceAround,
-              spacing: 10,
-              runSpacing: 15,
-              children: [
-                _buildQuickMenu(
-                  context,
-                  "History",
-                  Icons.history,
-                  Colors.orange,
-                  const HistoryPage(),
-                ),
-                _buildQuickMenu(
-                  context,
-                  "Statistik",
-                  Icons.bar_chart,
-                  Colors.purple,
-                  const StatisticPage(),
-                ),
-                _buildQuickMenu(
-                  context,
-                  "Tabungan",
-                  Icons.account_balance_wallet,
-                  Colors.teal,
-                  const SavingsPage(),
-                ),
-                _buildQuickMenu(
-                  context,
-                  "Planning",
-                  Icons.fact_check,
-                  Colors.blue,
-                  const PlanningPage(),
-                ),
-                _buildQuickMenu(
-                  context,
-                  "Hutang",
-                  Icons.handshake,
-                  Colors.indigo,
-                  const DebtPage(),
-                ),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  _buildQuickMenu(
+                    context,
+                    "History",
+                    FluentIcons.history_24_regular,
+                    Colors.orange.shade600,
+                    const HistoryPage(),
+                  ).animate().fadeIn(delay: 300.ms).slideX(begin: 0.2),
+                  _buildQuickMenu(
+                    context,
+                    "Statistik",
+                    FluentIcons.data_bar_vertical_24_regular,
+                    Colors.purple.shade600,
+                    const StatisticPage(),
+                  ).animate().fadeIn(delay: 400.ms).slideX(begin: 0.2),
+                  _buildQuickMenu(
+                    context,
+                    "Tabungan",
+                    FluentIcons.wallet_24_regular,
+                    Colors.teal.shade600,
+                    const SavingsPage(),
+                  ).animate().fadeIn(delay: 500.ms).slideX(begin: 0.2),
+                  _buildQuickMenu(
+                    context,
+                    "Planning",
+                    FluentIcons.clipboard_task_24_regular,
+                    Colors.blue.shade600,
+                    const PlanningPage(),
+                  ).animate().fadeIn(delay: 600.ms).slideX(begin: 0.2),
+                  _buildQuickMenu(
+                    context,
+                    "Hutang",
+                    FluentIcons.handshake_24_regular,
+                    Colors.indigo.shade600,
+                    const DebtPage(),
+                    hasBadge: context.watch<DebtController>().activeHutang.isNotEmpty,
+                  ).animate().fadeIn(delay: 700.ms).slideX(begin: 0.2),
+                ],
+              ),
             ),
           ),
 
@@ -224,7 +281,7 @@ class DashboardPage extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.receipt_long,
+                          FluentIcons.receipt_24_regular,
                           size: 60,
                           color: Colors.grey.shade300,
                         ),
@@ -234,7 +291,7 @@ class DashboardPage extends StatelessWidget {
                           style: TextStyle(color: Colors.grey),
                         ),
                       ],
-                    ),
+                    ).animate().fadeIn(),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -245,7 +302,9 @@ class DashboardPage extends StatelessWidget {
 
                       return Dismissible(
                         key: ValueKey(exp.key),
-                        direction: DismissDirection.endToStart,
+                        direction: exp.debtId == null
+                            ? DismissDirection.endToStart
+                            : DismissDirection.none,
                         background: Container(
                           decoration: BoxDecoration(
                             color: Colors.red,
@@ -260,18 +319,36 @@ class DashboardPage extends StatelessWidget {
                             size: 28,
                           ),
                         ),
-                        onDismissed: (_) {
-                          if (exp.planId != null) {
-                            context.read<PlanController>().unmarkPaidByPlanId(exp.planId!);
+                        confirmDismiss: (_) async {
+                          final removed = await expenseController.removeExpense(
+                            exp,
+                          );
+                          if (!context.mounted) return false;
+                          if (!removed) {
+                            toastification.show(
+                              context: context,
+                              title: const Text(
+                                "Akun transaksi tidak ditemukan. Transaksi belum dihapus.",
+                              ),
+                              type: ToastificationType.error,
+                              style: ToastificationStyle.flat,
+                              autoCloseDuration: const Duration(seconds: 3),
+                            );
+                            return false;
                           }
-                          expenseController.removeExpense(
-                            expenseController.expenses.indexOf(exp),
+                          if (exp.planId != null) {
+                            context
+                                .read<PlanController>()
+                                .unmarkPaidByPlanId(exp.planId!);
+                          }
+                          toastification.show(
+                            context: context,
+                            title: const Text("🗑️ Transaksi dihapus"),
+                            type: ToastificationType.success,
+                            style: ToastificationStyle.flat,
+                            autoCloseDuration: const Duration(seconds: 3),
                           );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("🗑️ Transaksi dihapus"),
-                            ),
-                          );
+                          return true;
                         },
                         child: Card(
                           elevation: 1,
@@ -291,32 +368,65 @@ class DashboardPage extends StatelessWidget {
                                   : (exp.type == "income"
                                         ? Colors.green.shade50
                                         : Colors.red.shade50),
-                              child: Icon(
-                                exp.type == "transfer"
-                                    ? Icons.sync_alt
-                                    : (exp.type == "income"
-                                          ? Icons.arrow_downward
-                                          : Icons.arrow_upward),
-                                color: exp.type == "transfer"
+                              child: Builder(builder: (ctx) {
+                                final catList = exp.type == 'income'
+                                    ? categoryController.incomeCategories
+                                    : categoryController.expenseCategories;
+                                final cat = catList.where((c) => c.name == exp.category).firstOrNull;
+                                final iconColor = exp.type == "transfer"
                                     ? Colors.blue
-                                    : (exp.type == "income"
-                                          ? Colors.green
-                                          : Colors.red),
-                              ),
+                                    : (exp.type == "income" ? Colors.green : Colors.red);
+                                if (exp.type != 'transfer' && cat?.iconCodePoint != null) {
+                                  return Icon(
+                                    IconData(cat!.iconCodePoint!, fontFamily: cat.iconFontFamily),
+                                    color: iconColor,
+                                  );
+                                }
+                                return Icon(
+                                  exp.type == "transfer"
+                                      ? Icons.sync_alt
+                                      : (exp.type == "income" ? Icons.arrow_downward : Icons.arrow_upward),
+                                  color: iconColor,
+                                );
+                              }),
                             ),
                             title: Text(
-                              exp.category,
+                              exp.note != null && exp.note!.isNotEmpty ? exp.note! : exp.category,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
                             ),
-                            subtitle: Text(
-                              exp.note?.isNotEmpty == true
-                                  ? exp.note!
-                                  : exp.source,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 6.0),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: exp.type == 'transfer' ? Colors.blue.shade50 : (exp.type == 'income' ? Colors.green.shade50 : Colors.orange.shade50),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      exp.category,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: exp.type == 'transfer' ? Colors.blue.shade700 : (exp.type == 'income' ? Colors.green.shade700 : Colors.orange.shade700),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      (exp.note != null && exp.note!.isNotEmpty) ? exp.note! : exp.source,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                             trailing: Text(
                               CurrencyInputFormatter.format(exp.amount),
@@ -331,6 +441,18 @@ class DashboardPage extends StatelessWidget {
                               ),
                             ),
                             onTap: () {
+                              if (exp.debtId != null) {
+                                toastification.show(
+                                  context: context,
+                                  title: const Text(
+                                    "Kelola transaksi ini dari menu Hutang & Piutang.",
+                                  ),
+                                  type: ToastificationType.info,
+                                  style: ToastificationStyle.flat,
+                                  autoCloseDuration: const Duration(seconds: 3),
+                                );
+                                return;
+                              }
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -340,7 +462,7 @@ class DashboardPage extends StatelessWidget {
                               );
                             },
                           ),
-                        ),
+                        ).animate().fadeIn(delay: (100 * (index < 5 ? index : 5)).ms).slideX(begin: 0.1),
                       );
                     },
                   ),
@@ -350,8 +472,8 @@ class DashboardPage extends StatelessWidget {
 
       // 🔹 TOMBOL TAMBAH TRANSAKSI
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.blue.shade700,
-        icon: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        icon: const Icon(FluentIcons.add_24_regular, color: Colors.white),
         label: const Text(
           "Catat",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -373,32 +495,87 @@ class DashboardPage extends StatelessWidget {
     String title,
     IconData icon,
     Color color,
-    Widget page,
-  ) {
+    Widget page, {
+    bool hasBadge = false,
+  }) {
     return GestureDetector(
       onTap: () =>
           Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
+      child: Container(
+        width: 72,
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        child: Column(
+          children: [
+            Badge(
+              isLabelVisible: hasBadge,
+              backgroundColor: Colors.redAccent,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: color, size: 26),
+              ),
             ),
-            child: Icon(icon, color: color, size: 28),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              color: Colors.black87,
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+  Widget _build5030Row(String label, double real, double target, Color labelColor) {
+    final double pct = target > 0 ? (real / target).clamp(0.0, 1.0) : 0.0;
+    final Color barColor = pct >= 1.0 ? Colors.red : (pct >= 0.8 ? Colors.orange : labelColor);
+    final int maxPct = label.contains('50') ? 50 : label.contains('30') ? 30 : 20;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: labelColor)),
+            Text(
+              '${(pct * maxPct).toStringAsFixed(0)}% / $maxPct%',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: barColor),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: pct,
+            minHeight: 8,
+            backgroundColor: Colors.grey.shade200,
+            color: barColor,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          '${CurrencyInputFormatter.formatCompact(real)} / ${CurrencyInputFormatter.formatCompact(target)}',
+          style: const TextStyle(fontSize: 10, color: Colors.grey),
+        ),
+      ],
+    );
+  }
+
 }

@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
+import 'package:toastification/toastification.dart';
 
 import '../models/expense.dart';
 import '../models/saving_account.dart';
@@ -14,19 +15,9 @@ import '../models/user_profile.dart';
 import '../models/user_settings.dart';
 import '../models/monthly_report.dart';
 import '../models/plan_item.dart';
+import '../models/debt.dart';
 
 class BackupService {
-  static const List<String> _boxNames = [
-    'expensesBox',
-    'savingsBox',
-    'categoryBox',
-    'budgetBox',
-    'userBox',
-    'userSettingsBox',
-    'monthlyReportsBox',
-    'planBox',
-  ];
-
   static Future<void> exportBackup(BuildContext context) async {
     Map<String, dynamic> backupData = {};
 
@@ -50,6 +41,7 @@ class BackupService {
       'monthlyReportsBox',
     ).values.toList();
     backupData['planBox'] = Hive.box<PlanItem>('planBox').values.toList();
+    backupData['debtBox'] = Hive.box<Debt>('debtBox').values.toList();
 
     String jsonString = jsonEncode(
       backupData,
@@ -63,6 +55,7 @@ class BackupService {
             'type': value.type,
             'source': value.source,
             'planId': value.planId,
+            'debtId': value.debtId,
           };
         }
         if (value is SavingAccount) {
@@ -72,10 +65,16 @@ class BackupService {
             'bankName': value.bankName,
             'accountNumber': value.accountNumber,
             'accountHolderName': value.accountHolderName,
+            'pocketCategory': value.pocketCategory,
           };
         }
         if (value is TransactionCategory) {
-          return {'name': value.name, 'type': value.type};
+          return {
+            'name': value.name,
+            'type': value.type,
+            'iconCodePoint': value.iconCodePoint,
+            'iconFontFamily': value.iconFontFamily,
+          };
         }
         if (value is CategoryBudget) {
           return {
@@ -88,6 +87,8 @@ class BackupService {
           return {
             'payday': value.payday,
             'isNotificationEnabled': value.isNotificationEnabled,
+            'resetBalanceOnPayday': value.resetBalanceOnPayday,
+            'themeColor': value.themeColor,
           };
         }
         if (value is MonthlyReport) {
@@ -109,6 +110,18 @@ class BackupService {
             'planType': value.planType,
           };
         }
+        if (value is Debt) {
+          return {
+            'id': value.id,
+            'type': value.type,
+            'personName': value.personName,
+            'amount': value.amount,
+            'paidAmount': value.paidAmount,
+            'createdAt': value.createdAt.toIso8601String(),
+            'dueDate': value.dueDate?.toIso8601String(),
+            'isSettled': value.isSettled,
+          };
+        }
         return value;
       },
     );
@@ -125,20 +138,22 @@ class BackupService {
       );
 
       if (outputFile != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Backup berhasil disimpan"),
-            backgroundColor: Colors.green,
-          ),
+        toastification.show(
+          context: context,
+          title: const Text("Backup berhasil disimpan"),
+          type: ToastificationType.success,
+          style: ToastificationStyle.flat,
+          autoCloseDuration: const Duration(seconds: 3),
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Gagal menyimpan file: $e"),
-            backgroundColor: Colors.red,
-          ),
+        toastification.show(
+          context: context,
+          title: Text("Gagal menyimpan file: $e"),
+          type: ToastificationType.error,
+          style: ToastificationStyle.flat,
+          autoCloseDuration: const Duration(seconds: 3),
         );
       }
     }
@@ -167,6 +182,7 @@ class BackupService {
           type: item['type'],
           source: item['source'] ?? 'Budget Utama',
           planId: item['planId'],
+          debtId: item['debtId'],
         ),
       );
 
@@ -179,13 +195,19 @@ class BackupService {
           bankName: item['bankName'],
           accountNumber: item['accountNumber'],
           accountHolderName: item['accountHolderName'],
+          pocketCategory: item['pocketCategory'] ?? 'savings',
         ),
       );
 
       await _restoreBox<TransactionCategory>(
         'categoryBox',
         data['categoryBox'],
-        (item) => TransactionCategory(name: item['name'], type: item['type']),
+        (item) => TransactionCategory(
+          name: item['name'],
+          type: item['type'],
+          iconCodePoint: item['iconCodePoint'],
+          iconFontFamily: item['iconFontFamily'],
+        ),
       );
 
       await _restoreBox<CategoryBudget>(
@@ -209,6 +231,10 @@ class BackupService {
         (item) => UserSettings(
           payday: item['payday'],
           isNotificationEnabled: item['isNotificationEnabled'] ?? true,
+          resetBalanceOnPayday: item['resetBalanceOnPayday'] ?? false,
+          themeColor: item['themeColor'] ?? 0xFF1E3A8A,
+          budgetingMode: item['budgetingMode'] ?? 'standard',
+          isBalanceHidden: item['isBalanceHidden'] ?? false,
         ),
       );
 
@@ -237,6 +263,8 @@ class BackupService {
         ),
       );
 
+      await _restoreDebtBox(data['debtBox']);
+
       return true;
     }
     return false;
@@ -252,7 +280,29 @@ class BackupService {
     var box = Hive.box<T>(boxName);
     await box.clear();
     for (var item in data) {
-      box.add(mapper(Map<String, dynamic>.from(item)));
+      await box.add(mapper(Map<String, dynamic>.from(item)));
+    }
+  }
+
+  static Future<void> _restoreDebtBox(List<dynamic>? data) async {
+    final debts = (data ?? const <dynamic>[]).map((item) {
+      final map = Map<String, dynamic>.from(item);
+      return Debt(
+        id: map['id'],
+        type: map['type'],
+        personName: map['personName'],
+        amount: (map['amount'] as num).toDouble(),
+        paidAmount: (map['paidAmount'] as num?)?.toDouble() ?? 0.0,
+        createdAt: DateTime.parse(map['createdAt']),
+        dueDate: map['dueDate'] == null ? null : DateTime.parse(map['dueDate']),
+        isSettled: map['isSettled'] ?? false,
+      );
+    }).toList();
+
+    final box = Hive.box<Debt>('debtBox');
+    await box.clear();
+    for (final debt in debts) {
+      await box.put(debt.id, debt);
     }
   }
 }

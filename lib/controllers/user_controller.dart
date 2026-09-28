@@ -23,6 +23,18 @@ class UserController extends ChangeNotifier {
   // Secara default tanggal 1 jika user belum mengatur
   int get payday => _settingsBox.isNotEmpty ? _settingsBox.getAt(0)!.payday : 1;
 
+  String get budgetingMode => _settingsBox.isNotEmpty
+      ? (_settingsBox.getAt(0)?.budgetingMode ?? 'standard')
+      : 'standard';
+
+  bool get isBalanceHidden => _settingsBox.isNotEmpty
+      ? (_settingsBox.getAt(0)?.isBalanceHidden ?? false)
+      : false;
+
+  int get themeColor => _settingsBox.isNotEmpty
+      ? (_settingsBox.getAt(0)?.themeColor ?? 0xFF1E3A8A)
+      : 0xFF1E3A8A;
+
   void setUser(String name) {
     if (_userBox.isEmpty) {
       _userBox.add(UserProfile(name: name));
@@ -63,6 +75,28 @@ class UserController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setBudgetingMode(String mode) {
+    if (_settingsBox.isEmpty) {
+      _settingsBox.add(UserSettings(payday: 1, budgetingMode: mode));
+    } else {
+      final settings = _settingsBox.getAt(0)!;
+      settings.budgetingMode = mode;
+      settings.save();
+    }
+    notifyListeners();
+  }
+
+  void toggleBalanceVisibility() {
+    if (_settingsBox.isEmpty) {
+      _settingsBox.add(UserSettings(payday: 1, isBalanceHidden: true));
+    } else {
+      final settings = _settingsBox.getAt(0)!;
+      settings.isBalanceHidden = !settings.isBalanceHidden;
+      settings.save();
+    }
+    notifyListeners();
+  }
+
   void toggleResetBalance(bool value) {
     if (_settingsBox.isEmpty) {
       _settingsBox.add(UserSettings(payday: 1, resetBalanceOnPayday: value));
@@ -76,6 +110,17 @@ class UserController extends ChangeNotifier {
 
   void clearUser() {
     _userBox.clear();
+    notifyListeners();
+  }
+
+  void setThemeColor(int color) {
+    if (_settingsBox.isEmpty) {
+      _settingsBox.add(UserSettings(payday: 1, themeColor: color));
+    } else {
+      final settings = _settingsBox.getAt(0)!;
+      settings.themeColor = color;
+      settings.save();
+    }
     notifyListeners();
   }
 }

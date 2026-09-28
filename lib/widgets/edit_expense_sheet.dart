@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:toastification/toastification.dart';
 import '../controllers/expense_controller.dart';
 import '../models/expense.dart';
 
 class EditExpenseSheet extends StatelessWidget {
   final Expense exp;
-  final int index;
 
-  const EditExpenseSheet({super.key, required this.exp, required this.index});
+  const EditExpenseSheet({super.key, required this.exp});
 
   @override
   Widget build(BuildContext context) {
@@ -40,18 +40,40 @@ class EditExpenseSheet extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final updated = Expense(
                 amount: double.tryParse(amountController.text) ?? exp.amount,
                 category: selectedCategory,
                 type: selectedType,
                 date: exp.date,
                 note: noteController.text,
+                source: exp.source,
+                planId: exp.planId,
+                debtId: exp.debtId,
               );
-              context.read<ExpenseController>().updateExpense(index, updated);
+              final updatedSuccessfully = await context
+                  .read<ExpenseController>()
+                  .updateExpense(exp, updated);
+              if (!context.mounted) return;
+              if (!updatedSuccessfully) {
+                toastification.show(
+                  context: context,
+                  title: const Text(
+                    "Akun transaksi tidak ditemukan. Perubahan dibatalkan.",
+                  ),
+                  type: ToastificationType.error,
+                  style: ToastificationStyle.flat,
+                  autoCloseDuration: const Duration(seconds: 3),
+                );
+                return;
+              }
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("✏️ Transaksi berhasil diperbarui")),
+              toastification.show(
+                context: context,
+                title: const Text("✏️ Transaksi berhasil diperbarui"),
+                type: ToastificationType.success,
+                style: ToastificationStyle.flat,
+                autoCloseDuration: const Duration(seconds: 3),
               );
             },
             child: const Text("Simpan Perubahan"),

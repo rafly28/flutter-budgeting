@@ -5,12 +5,16 @@ class FinanceSummaryCard extends StatelessWidget {
   final double income;
   final double expense;
   final double balance;
+  final bool isHidden;
+  final VoidCallback? onToggleVisibility;
 
   const FinanceSummaryCard({
     super.key,
     required this.income,
     required this.expense,
     required this.balance,
+    this.isHidden = false,
+    this.onToggleVisibility,
   });
 
   @override
@@ -23,14 +27,14 @@ class FinanceSummaryCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.blue.shade900,
-            Colors.blue.shade600,
-            Colors.lightBlue.shade400,
+            const Color(0xFF0F172A), // Slate 900
+            Theme.of(context).colorScheme.primary, // Blue 900
+            const Color(0xFF3B82F6), // Blue 500
           ],
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.shade900.withOpacity(0.4),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -47,7 +51,7 @@ class FinanceSummaryCard extends StatelessWidget {
               top: -30,
               child: CircleAvatar(
                 radius: 70,
-                backgroundColor: Colors.white.withOpacity(0.1),
+                backgroundColor: Colors.white.withValues(alpha: 0.05),
               ),
             ),
             Positioned(
@@ -55,7 +59,7 @@ class FinanceSummaryCard extends StatelessWidget {
               bottom: -40,
               child: CircleAvatar(
                 radius: 60,
-                backgroundColor: Colors.white.withOpacity(0.08),
+                backgroundColor: Colors.white.withValues(alpha: 0.05),
               ),
             ),
 
@@ -72,33 +76,37 @@ class FinanceSummaryCard extends StatelessWidget {
                         "Sisa Saldo Siklus Ini",
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      Icon(
-                        Icons.account_balance_wallet,
-                        color: Colors.white.withOpacity(0.8),
-                        size: 20,
+                      GestureDetector(
+                        onTap: onToggleVisibility,
+                        child: Icon(
+                          isHidden ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          size: 22,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    CurrencyInputFormatter.format(balance),
+                    isHidden ? "Rp ••••••" : CurrencyInputFormatter.format(balance),
                     style: const TextStyle(
                       fontSize: 34,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
-                      letterSpacing: -1,
+                      letterSpacing: -0.5,
                     ),
                   ),
 
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 12),
+                  _buildBudgetProgressBar(),
+                  const SizedBox(height: 16),
+                  Container(height: 1, color: Colors.white.withValues(alpha: 0.15)),
 
-                  Container(height: 1, color: Colors.white.withOpacity(0.2)),
-
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 15),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -131,7 +139,7 @@ class FinanceSummaryCard extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  CurrencyInputFormatter.format(income),
+                                  isHidden ? "Rp ••••••" : CurrencyInputFormatter.format(income),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -172,7 +180,7 @@ class FinanceSummaryCard extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  CurrencyInputFormatter.format(expense),
+                                  isHidden ? "Rp ••••••" : CurrencyInputFormatter.format(expense),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -192,6 +200,51 @@ class FinanceSummaryCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBudgetProgressBar() {
+    double pctRemaining = income > 0 ? ((income - expense) / income).clamp(0.0, 1.0) : 0.0;
+    int pctInt = (pctRemaining * 100).toInt();
+    String status = "Habis";
+    Color barColor = Colors.redAccent;
+    
+    if (pctRemaining > 0.6) {
+      status = "Sangat Terkendali";
+      barColor = Colors.greenAccent;
+    } else if (pctRemaining > 0.2) {
+      status = "Terkendali";
+      barColor = Colors.orangeAccent;
+    } else if (pctRemaining > 0) {
+      status = "Hampir Habis";
+      barColor = Colors.redAccent;
+    }
+
+    if (income == 0) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "Tersisa $pctInt% - $status",
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: pctRemaining,
+            minHeight: 6,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            valueColor: AlwaysStoppedAnimation<Color>(barColor),
+          ),
+        ),
+      ],
     );
   }
 }

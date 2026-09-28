@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:toastification/toastification.dart';
 
 import '../controllers/expense_controller.dart';
 import '../controllers/plan_controller.dart';
+import '../controllers/category_controller.dart';
 import '../models/expense.dart';
 import '../utils/currency_input_formatter.dart';
 import 'add_expense_page.dart';
@@ -35,9 +39,9 @@ class _HistoryPageState extends State<HistoryPage> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100, // 👈 Sama dengan Dashboard
+      backgroundColor: Colors.grey.shade50, // 👈 Sama dengan Dashboard
       appBar: AppBar(
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
@@ -83,8 +87,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
               // 👇 1. Styling Header Kalender
               headerStyle: HeaderStyle(
-                formatButtonVisible:
-                    false, // Sembunyikan tombol format agar lebih bersih
+                formatButtonVisible: false, // Sembunyikan tombol format agar lebih bersih
                 titleCentered: true,
                 titleTextStyle: const TextStyle(
                   fontWeight: FontWeight.bold,
@@ -92,13 +95,13 @@ class _HistoryPageState extends State<HistoryPage> {
                   color: Colors.black87,
                 ),
                 leftChevronIcon: Icon(
-                  Icons.chevron_left_rounded,
-                  color: Colors.blue.shade700,
+                  FluentIcons.chevron_left_24_regular,
+                  color: Theme.of(context).colorScheme.primary,
                   size: 28,
                 ),
                 rightChevronIcon: Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.blue.shade700,
+                  FluentIcons.chevron_right_24_regular,
+                  color: Theme.of(context).colorScheme.primary,
                   size: 28,
                 ),
               ),
@@ -108,10 +111,8 @@ class _HistoryPageState extends State<HistoryPage> {
                 outsideDaysVisible: false, // Sembunyikan tanggal bulan lain
                 // Tampilan saat hari dipilih
                 selectedDecoration: BoxDecoration(
-                  color: Colors.blue.shade700,
-                  borderRadius: BorderRadius.circular(
-                    12,
-                  ), // Bentuk kotak melengkung (Squircle)
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(12), // Bentuk kotak melengkung (Squircle)
                 ),
                 selectedTextStyle: const TextStyle(
                   color: Colors.white,
@@ -153,7 +154,7 @@ class _HistoryPageState extends State<HistoryPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.receipt_long,
+                          FluentIcons.receipt_24_regular,
                           size: 64,
                           color: Colors.grey.shade300,
                         ),
@@ -164,7 +165,7 @@ class _HistoryPageState extends State<HistoryPage> {
                           style: const TextStyle(color: Colors.grey),
                         ),
                       ],
-                    ),
+                    ).animate().fadeIn(),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(
@@ -178,7 +179,9 @@ class _HistoryPageState extends State<HistoryPage> {
 
                       return Dismissible(
                         key: ValueKey(exp.key),
-                        direction: DismissDirection.endToStart,
+                        direction: exp.debtId == null
+                            ? DismissDirection.endToStart
+                            : DismissDirection.none,
                         background: Container(
                           decoration: BoxDecoration(
                             color: Colors.red,
@@ -193,18 +196,36 @@ class _HistoryPageState extends State<HistoryPage> {
                             size: 28,
                           ),
                         ),
-                        onDismissed: (_) {
-                          if (exp.planId != null) {
-                            context.read<PlanController>().unmarkPaidByPlanId(exp.planId!);
+                        confirmDismiss: (_) async {
+                          final removed = await expenseController.removeExpense(
+                            exp,
+                          );
+                          if (!context.mounted) return false;
+                          if (!removed) {
+                            toastification.show(
+                              context: context,
+                              title: const Text(
+                                "Akun transaksi tidak ditemukan. Transaksi belum dihapus.",
+                              ),
+                              type: ToastificationType.error,
+                              style: ToastificationStyle.flat,
+                              autoCloseDuration: const Duration(seconds: 3),
+                            );
+                            return false;
                           }
-                          expenseController.removeExpense(
-                            expenseController.expenses.indexOf(exp),
+                          if (exp.planId != null) {
+                            context
+                                .read<PlanController>()
+                                .unmarkPaidByPlanId(exp.planId!);
+                          }
+                          toastification.show(
+                            context: context,
+                            title: const Text("🗑️ Transaksi dihapus"),
+                            type: ToastificationType.success,
+                            style: ToastificationStyle.flat,
+                            autoCloseDuration: const Duration(seconds: 3),
                           );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("🗑️ Transaksi dihapus"),
-                            ),
-                          );
+                          return true;
                         },
                         child: Card(
                           elevation: 1,
@@ -224,30 +245,47 @@ class _HistoryPageState extends State<HistoryPage> {
                                   : (exp.type == "income"
                                         ? Colors.green.shade50
                                         : Colors.red.shade50),
-                              child: Icon(
-                                exp.type == "transfer"
-                                    ? Icons.sync_alt
-                                    : (exp.type == "income"
-                                          ? Icons.arrow_downward
-                                          : Icons.arrow_upward),
-                                color: exp.type == "transfer"
-                                    ? Colors.blue
-                                    : (exp.type == "income"
-                                          ? Colors.green
-                                          : Colors.red),
+                              child: Builder(
+                                builder: (context) {
+                                  final catCtrl = context.read<CategoryController>();
+                                  final catList = exp.type == 'income' ? catCtrl.incomeCategories : catCtrl.expenseCategories;
+                                  final category = catList.where((c) => c.name == exp.category).firstOrNull;
+
+                                  if (category?.iconCodePoint != null) {
+                                    return Icon(
+                                      IconData(category!.iconCodePoint!, fontFamily: category.iconFontFamily),
+                                      color: exp.type == "transfer"
+                                          ? Colors.blue
+                                          : (exp.type == "income"
+                                                ? Colors.green
+                                                : Colors.red),
+                                    );
+                                  }
+
+                                  return Icon(
+                                    exp.type == "transfer"
+                                        ? Icons.sync_alt
+                                        : (exp.type == "income"
+                                              ? Icons.arrow_downward
+                                              : Icons.arrow_upward),
+                                    color: exp.type == "transfer"
+                                        ? Colors.blue
+                                        : (exp.type == "income"
+                                              ? Colors.green
+                                              : Colors.red),
+                                  );
+                                }
                               ),
                             ),
                             title: Text(
-                              exp.category,
+                              exp.note != null && exp.note!.isNotEmpty ? exp.note! : exp.category,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
                             ),
                             subtitle: Text(
-                              exp.note?.isNotEmpty == true
-                                  ? exp.note!
-                                  : exp.source,
+                              '${exp.category} - ${(exp.note != null && exp.note!.isNotEmpty) ? exp.note! : '-'} - ${exp.source}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -265,6 +303,18 @@ class _HistoryPageState extends State<HistoryPage> {
                             ),
                             // 👇 FITUR EDIT SAAT DI-KLIK
                             onTap: () {
+                              if (exp.debtId != null) {
+                                toastification.show(
+                                  context: context,
+                                  title: const Text(
+                                    "Kelola transaksi ini dari menu Hutang & Piutang.",
+                                  ),
+                                  type: ToastificationType.info,
+                                  style: ToastificationStyle.flat,
+                                  autoCloseDuration: const Duration(seconds: 3),
+                                );
+                                return;
+                              }
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -275,7 +325,7 @@ class _HistoryPageState extends State<HistoryPage> {
                             },
                           ),
                         ),
-                      );
+                      ).animate().fadeIn(delay: (100 * (index < 5 ? index : 5)).ms).slideX(begin: 0.1);
                     },
                   ),
           ),
@@ -284,8 +334,8 @@ class _HistoryPageState extends State<HistoryPage> {
 
       // 🔹 TOMBOL ADD (Otomatis menggunakan tanggal yang dipilih)
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.blue.shade700,
-        icon: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        icon: const Icon(FluentIcons.add_24_regular, color: Colors.white),
         label: const Text(
           "Catat Susulan",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),

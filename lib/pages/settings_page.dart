@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:toastification/toastification.dart';
 
 import '../controllers/user_controller.dart';
 import '../controllers/category_controller.dart';
@@ -9,7 +10,6 @@ import '../controllers/budget_controller.dart';
 import '../utils/currency_input_formatter.dart';
 import 'category_management_page.dart';
 import '../services/backup_service.dart';
-import '../services/notification_service.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -25,9 +25,9 @@ class SettingsPage extends StatelessWidget {
     final resetBalance = userController.resetBalanceOnPayday;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
@@ -47,7 +47,7 @@ class SettingsPage extends StatelessWidget {
                 right: 20,
               ),
               decoration: BoxDecoration(
-                color: Colors.blue.shade700,
+                color: Theme.of(context).colorScheme.primary,
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(30),
                 ),
@@ -60,7 +60,7 @@ class SettingsPage extends StatelessWidget {
                     child: Icon(
                       Icons.person,
                       size: 40,
-                      color: Colors.blue.shade700,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                   const SizedBox(height: 15),
@@ -100,7 +100,7 @@ class SettingsPage extends StatelessWidget {
                         ListTile(
                           leading: Icon(
                             Icons.person_outline,
-                            color: Colors.blue.shade700,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           title: const Text("Nama Panggilan"),
                           subtitle: Text(userName),
@@ -119,7 +119,7 @@ class SettingsPage extends StatelessWidget {
                         ListTile(
                           leading: Icon(
                             Icons.calendar_month_outlined,
-                            color: Colors.blue.shade700,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           title: const Text("Tanggal Gajian (Siklus)"),
                           subtitle: Text("Tanggal $payday setiap bulan"),
@@ -138,17 +138,76 @@ class SettingsPage extends StatelessWidget {
                         SwitchListTile(
                           secondary: Icon(
                             Icons.refresh_rounded,
-                            color: Colors.blue.shade700,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           title: const Text("Mode Saldo: Reset Tiap Gajian"),
                           subtitle: const Text("Aktifkan jika ingin saldo di-reset jadi 0 tiap tanggal gajian."),
                           value: resetBalance,
-                          activeColor: Colors.blue.shade700,
+                          activeColor: Theme.of(context).colorScheme.primary,
                           onChanged: (val) {
                             userController.toggleResetBalance(val);
                           },
                         ),
+                        const Divider(height: 1, indent: 50, endIndent: 16),
+                        SwitchListTile(
+                          secondary: Icon(
+                            Icons.pie_chart_outline_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          title: const Text("Metode Anggaran 50-30-20"),
+                          subtitle: const Text("Bagi pos belanja & tabungan jadi Kebutuhan (50%), Keinginan (30%), dan Tabungan (20%)."),
+                          value: userController.budgetingMode == 'pocket_50_30_20',
+                          activeColor: Theme.of(context).colorScheme.primary,
+                          onChanged: (val) {
+                            userController.setBudgetingMode(val ? 'pocket_50_30_20' : 'standard');
+                          },
+                        ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // 🔹 BAGIAN TEMA APLIKASI
+                  const Text(
+                    "Personalisasi Aplikasi",
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Warna Dasar",
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 15,
+                            runSpacing: 15,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              _buildColorOption(context, userController, 0xFF1E3A8A, "Biru Gelap"),
+                              _buildColorOption(context, userController, 0xFF0F172A, "Gelap"),
+                              _buildColorOption(context, userController, 0xFFE11D48, "Pink"),
+                              _buildColorOption(context, userController, 0xFF38BDF8, "Light Blue"),
+                              _buildColorOption(context, userController, 0xFFFFB6C1, "Baby Pink"),
+                              _buildColorOption(context, userController, 0xFFDDA0DD, "Plum"),
+                              _buildColorOption(context, userController, 0xFFFFDAB9, "Peach"),
+                              _buildColorOption(context, userController, 0xFFE0FFFF, "Baby Blue"),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -246,12 +305,12 @@ class SettingsPage extends StatelessWidget {
                           onTap: () async {
                             bool success = await BackupService.importBackup();
                             if (success) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    "✅ Restore Berhasil! Restart aplikasi.",
-                                  ),
-                                ),
+                              toastification.show(
+                                context: context,
+                                title: const Text("✅ Restore Berhasil! Restart aplikasi."),
+                                type: ToastificationType.success,
+                                style: ToastificationStyle.flat,
+                                autoCloseDuration: const Duration(seconds: 3),
                               );
                             }
                           },
@@ -280,7 +339,7 @@ class SettingsPage extends StatelessWidget {
                             ? Icons.notifications_active
                             : Icons.notifications_off_outlined,
                         color: userController.isNotificationEnabled
-                            ? Colors.blue.shade700
+                            ? Theme.of(context).colorScheme.primary
                             : Colors.grey,
                       ),
                       title: const Text(
@@ -291,7 +350,7 @@ class SettingsPage extends StatelessWidget {
                         "Ingatkan saya jam 20:00 jika belum catat transaksi hari ini",
                       ),
                       value: userController.isNotificationEnabled,
-                      activeThumbColor: Colors.blue.shade700,
+                      activeThumbColor: Theme.of(context).colorScheme.primary,
                       onChanged: (bool value) {
                         userController.toggleNotification(value);
                       },
@@ -328,7 +387,7 @@ class SettingsPage extends StatelessWidget {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade700,
+              backgroundColor: Theme.of(context).colorScheme.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -519,6 +578,43 @@ class SettingsPage extends StatelessWidget {
             },
             child: const Text("Simpan"),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColorOption(BuildContext context, UserController userController, int colorHex, String label) {
+    final isSelected = userController.themeColor == colorHex;
+    final color = Color(colorHex);
+
+    return GestureDetector(
+      onTap: () {
+        userController.setThemeColor(colorHex);
+      },
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? color : Colors.transparent,
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.3),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                )
+              ],
+            ),
+            child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
+          ),
+          const SizedBox(height: 5),
+          Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
         ],
       ),
     );

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:toastification/toastification.dart';
 
 import 'controllers/expense_controller.dart';
 import 'controllers/user_controller.dart';
@@ -45,7 +48,7 @@ Future<void> main() async {
   await Hive.openBox<SavingAccount>('savingsBox');
   await Hive.openBox<CategoryBudget>('budgetBox');
   await Hive.openBox<TransactionCategory>('categoryBox');
-  await Hive.deleteBoxFromDisk('userSettingsBox');
+  // FIX: deleteBoxFromDisk dihapus — merusak settings setiap cold start
   await Hive.openBox<UserSettings>('userSettingsBox');
   await Hive.openBox<Expense>('expensesBox');
   await Hive.openBox<MonthlyReport>('monthlyReportsBox');
@@ -56,29 +59,40 @@ Future<void> main() async {
   final userBox = Hive.box<UserProfile>('userBox');
   final hasUser = userBox.isNotEmpty;
 
-  await NotificationService.init();
-  final settingsBox = Hive.box<UserSettings>('userSettingsBox');
-  bool isNotifyEnabled = true;
-  if (settingsBox.isNotEmpty) {
-    isNotifyEnabled = settingsBox.getAt(0)?.isNotificationEnabled ?? true;
-  }
+  // FIX: Wrap NotificationService dalam try-catch agar tidak blocking startup.
+  // init() yang throw akan menyebabkan runApp() tidak dipanggil → stuck di splash.
+  try {
+    await NotificationService.init();
+    final settingsBox = Hive.box<UserSettings>('userSettingsBox');
+    final isNotifyEnabled = settingsBox.isNotEmpty
+        ? (settingsBox.getAt(0)?.isNotificationEnabled ?? true)
+        : true;
 
-  if (isNotifyEnabled) {
-    NotificationService.scheduleDailyReminder();
-  } else {
-    NotificationService.cancelNotification();
+    if (isNotifyEnabled) {
+      // fire-and-forget intentional, tidak perlu await
+      NotificationService.scheduleDailyReminder().catchError((_) {});
+    } else {
+      NotificationService.cancelNotification().catchError((_) {});
+    }
+  } catch (e) {
+    // Notifikasi gagal init — app tetap jalan tanpa notifikasi
+    debugPrint('NotificationService init failed (non-fatal): ');
   }
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ExpenseController()),
+        ChangeNotifierProvider(create: (_) => SavingController()),
+        ChangeNotifierProvider(
+          create: (context) =>
+              ExpenseController(context.read<SavingController>()),
+        ),
         ChangeNotifierProvider(create: (_) => UserController()),
         ChangeNotifierProvider(create: (_) => CategoryController()),
         ChangeNotifierProvider(create: (_) => BudgetController()),
-        ChangeNotifierProvider(create: (_) => SavingController()),
         ChangeNotifierProvider(create: (_) => PlanController()),
         ChangeNotifierProxyProvider<ExpenseController, DebtController>(
+          lazy: false,
           create: (context) =>
               DebtController(context.read<ExpenseController>()),
           update: (context, expenseController, previous) =>
@@ -96,13 +110,45 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      initialRoute: hasUser ? "/dashboard" : "/onboarding",
-      routes: {
-        "/dashboard": (_) => const DashboardPage(),
-        "/onboarding": (_) => const OnboardingPage(),
-      },
+    final userController = context.watch<UserController>();
+    final primaryColor = Color(userController.themeColor);
+
+    return ToastificationWrapper(
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF0F172A),
+            primary: primaryColor,
+            secondary: const Color(0xFF3B82F6),
+            surface: Colors.grey.shade50,
+          ),
+          textTheme: GoogleFonts.plusJakartaSansTextTheme(
+            Theme.of(context).textTheme,
+          ),
+          appBarTheme: AppBarTheme(
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            systemOverlayStyle: SystemUiOverlayStyle.light,
+          ),
+          cardTheme: CardThemeData(
+            elevation: 2,
+            shadowColor: Colors.black.withValues(alpha: 0.05),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            color: Colors.white,
+          ),
+        ),
+        initialRoute: hasUser ? '/dashboard' : '/onboarding',
+        routes: {
+          '/dashboard': (_) => const DashboardPage(),
+          '/onboarding': (_) => const OnboardingPage(),
+        },
+      ),
     );
   }
 }

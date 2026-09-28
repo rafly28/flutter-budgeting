@@ -20,6 +20,16 @@ class _SavingsPageState extends State<SavingsPage> {
   int _currentCardIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<SavingController>().refreshMarketPrices();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final savingController = context.watch<SavingController>();
     final expenseController = context.watch<ExpenseController>();
@@ -37,7 +47,14 @@ class _SavingsPageState extends State<SavingsPage> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
-      body: Column(
+      body: RefreshIndicator(
+        onRefresh: () => context.read<SavingController>().refreshMarketPrices(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
         children: [
           // 🔹 BAGIAN 1: TOTAL KEKAYAAN TABUNGAN (Melengkung)
           Container(
@@ -184,14 +201,44 @@ class _SavingsPageState extends State<SavingsPage> {
                                   ),
                                 ],
                               ),
-                              Text(
-                                CurrencyInputFormatter.format(account.balance),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: -0.5,
-                                ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    CurrencyInputFormatter.format(account.balance),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  if (account.assetType != 'cash' && account.avgBuyPrice > 0)
+                                    Builder(builder: (ctx) {
+                                      final totalCost = account.unitCount * account.avgBuyPrice;
+                                      final currentVal = account.balance;
+                                      final pl = totalCost > 0 ? ((currentVal - totalCost) / totalCost * 100) : 0.0;
+                                      final isProfit = pl >= 0;
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 4.0),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: isProfit ? Colors.greenAccent.withValues(alpha: 0.2) : Colors.redAccent.withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            '${isProfit ? '+' : ''}${pl.toStringAsFixed(2)}%',
+                                            style: TextStyle(
+                                              color: isProfit ? Colors.greenAccent : Colors.redAccent,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                ],
                               ),
                               Row(
                                 mainAxisAlignment:
@@ -391,6 +438,10 @@ class _SavingsPageState extends State<SavingsPage> {
           ],
         ],
       ),
+            ),
+          ],
+        ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: Colors.blue.shade700,
         icon: const Icon(Icons.add, color: Colors.white),
@@ -526,123 +577,161 @@ class _SavingsPageState extends State<SavingsPage> {
     SavingAccount? accountToEdit,
   ) {
     final isEdit = accountToEdit != null;
-    final nameCtrl = TextEditingController(
-      text: isEdit ? accountToEdit.name : '',
-    );
-    final bankCtrl = TextEditingController(
-      text: isEdit ? accountToEdit.bankName : '',
-    );
-    final accNumCtrl = TextEditingController(
-      text: isEdit ? accountToEdit.accountNumber : '',
-    );
-    final holderCtrl = TextEditingController(
-      text: isEdit ? accountToEdit.accountHolderName : '',
-    );
+    final nameCtrl = TextEditingController(text: isEdit ? accountToEdit.name : '');
+    final bankCtrl = TextEditingController(text: isEdit ? accountToEdit.bankName : '');
+    final accNumCtrl = TextEditingController(text: isEdit ? accountToEdit.accountNumber : '');
+    final holderCtrl = TextEditingController(text: isEdit ? accountToEdit.accountHolderName : '');
 
     final initialBalance = isEdit && accountToEdit.balance > 0
-        ? NumberFormat.decimalPattern(
-            "id_ID",
-          ).format(accountToEdit.balance.toInt())
+        ? NumberFormat.decimalPattern("id_ID").format(accountToEdit.balance.toInt())
         : '';
     final balanceCtrl = TextEditingController(text: initialBalance);
 
+    String assetType = isEdit ? accountToEdit.assetType : 'cash';
+    final symbolCtrl = TextEditingController(text: isEdit ? accountToEdit.symbol : '');
+    final unitCountCtrl = TextEditingController(text: isEdit && accountToEdit.unitCount > 0 ? accountToEdit.unitCount.toString() : '');
+    final avgBuyPriceCtrl = TextEditingController(text: isEdit && accountToEdit.avgBuyPrice > 0 ? NumberFormat.decimalPattern("id_ID").format(accountToEdit.avgBuyPrice.toInt()) : '');
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          isEdit ? 'Edit Tabungan' : 'Tabungan Baru',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Nama (Cth: Dana Darurat)',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              isEdit ? 'Edit Tabungan/Aset' : 'Tabungan/Aset Baru',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: assetType,
+                    decoration: const InputDecoration(labelText: 'Tipe Aset'),
+                    items: const [
+                      DropdownMenuItem(value: 'cash', child: Text('Uang Tunai')),
+                      DropdownMenuItem(value: 'gold', child: Text('Emas')),
+                      DropdownMenuItem(value: 'crypto', child: Text('Kripto')),
+                      DropdownMenuItem(value: 'stock', child: Text('Saham')),
+                    ],
+                    onChanged: (val) {
+                      setState(() {
+                        assetType = val ?? 'cash';
+                      });
+                    },
+                  ),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Nama (Cth: Dana Darurat)'),
+                  ),
+                  if (assetType == 'cash') ...[
+                    TextField(
+                      controller: bankCtrl,
+                      decoration: const InputDecoration(labelText: 'Bank / E-Wallet (Cth: BCA)'),
+                    ),
+                    TextField(
+                      controller: accNumCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Nomor Rekening'),
+                    ),
+                    TextField(
+                      controller: holderCtrl,
+                      decoration: const InputDecoration(labelText: 'Atas Nama'),
+                    ),
+                    TextField(
+                      controller: balanceCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [CurrencyInputFormatter()],
+                      decoration: const InputDecoration(labelText: 'Saldo Tabungan', prefixText: 'Rp '),
+                    ),
+                  ] else ...[
+                    TextField(
+                      controller: symbolCtrl,
+                      decoration: const InputDecoration(labelText: 'Simbol / Ticker (Cth: XAU, bitcoin, BBCA.JK)'),
+                    ),
+                    TextField(
+                      controller: unitCountCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Jumlah Unit (Cth: 5.5 Gram / Lot / Coin)'),
+                    ),
+                    TextField(
+                      controller: avgBuyPriceCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [CurrencyInputFormatter()],
+                      decoration: const InputDecoration(labelText: 'Harga Modal Rata-rata per Unit', prefixText: 'Rp '),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              if (isEdit)
+                TextButton(
+                  onPressed: () {
+                    controller.deleteSaving(accountToEdit);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Hapus', style: TextStyle(color: Colors.red)),
                 ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Batal', style: TextStyle(color: Colors.grey)),
               ),
-              TextField(
-                controller: bankCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Bank / E-Wallet (Cth: BCA)',
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade700,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-              ),
-              TextField(
-                controller: accNumCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Nomor Rekening'),
-              ),
-              TextField(
-                controller: holderCtrl,
-                decoration: const InputDecoration(labelText: 'Atas Nama'),
-              ),
-              TextField(
-                controller: balanceCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [CurrencyInputFormatter()],
-                decoration: const InputDecoration(
-                  labelText: 'Saldo Tabungan',
-                  prefixText: 'Rp ',
-                ),
+                onPressed: () {
+                  if (nameCtrl.text.isNotEmpty) {
+                    final String cleanAmount = balanceCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+                    final double finalBalance = double.tryParse(cleanAmount) ?? 0.0;
+                    
+                    final String cleanAvg = avgBuyPriceCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+                    final double avgBuyPrice = double.tryParse(cleanAvg) ?? 0.0;
+                    final double unitCount = double.tryParse(unitCountCtrl.text.replaceAll(',', '.')) ?? 0.0;
+                    
+                    double calcBalance = assetType == 'cash' ? finalBalance : (unitCount * avgBuyPrice);
+                    if (isEdit && assetType != 'cash' && accountToEdit.lastMarketPrice > 0) {
+                       calcBalance = unitCount * accountToEdit.lastMarketPrice;
+                    }
+
+                    if (isEdit) {
+                      controller.updateSavingDetails(
+                        accountToEdit,
+                        nameCtrl.text,
+                        assetType == 'cash' ? bankCtrl.text : '',
+                        assetType == 'cash' ? accNumCtrl.text : '',
+                        assetType == 'cash' ? holderCtrl.text : '',
+                        calcBalance,
+                        assetType: assetType,
+                        unitCount: unitCount,
+                        avgBuyPrice: avgBuyPrice,
+                        symbol: symbolCtrl.text.trim(),
+                      );
+                    } else {
+                      controller.addSavingAccount(
+                        nameCtrl.text,
+                        calcBalance,
+                        assetType == 'cash' ? bankCtrl.text : '',
+                        assetType == 'cash' ? accNumCtrl.text : '',
+                        assetType == 'cash' ? holderCtrl.text : '',
+                        assetType: assetType,
+                        unitCount: unitCount,
+                        avgBuyPrice: avgBuyPrice,
+                        symbol: symbolCtrl.text.trim(),
+                      );
+                    }
+                    Navigator.pop(context);
+                    controller.refreshMarketPrices();
+                  }
+                },
+                child: const Text('Simpan', style: TextStyle(color: Colors.white)),
               ),
             ],
-          ),
-        ),
-        actions: [
-          if (isEdit)
-            TextButton(
-              onPressed: () {
-                controller.deleteSaving(accountToEdit);
-                Navigator.pop(context);
-              },
-              child: const Text('Hapus', style: TextStyle(color: Colors.red)),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade700,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () {
-              if (nameCtrl.text.isNotEmpty) {
-                final String cleanAmount = balanceCtrl.text.replaceAll(
-                  RegExp(r'[^0-9]'),
-                  '',
-                );
-                final double finalBalance = double.tryParse(cleanAmount) ?? 0.0;
-
-                if (isEdit) {
-                  controller.updateSavingDetails(
-                    accountToEdit,
-                    nameCtrl.text,
-                    bankCtrl.text,
-                    accNumCtrl.text,
-                    holderCtrl.text,
-                    finalBalance,
-                  );
-                } else {
-                  controller.addSavingAccount(
-                    nameCtrl.text,
-                    finalBalance,
-                    bankCtrl.text,
-                    accNumCtrl.text,
-                    holderCtrl.text,
-                  );
-                }
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

@@ -190,10 +190,10 @@ class _PlanningPageState extends State<PlanningPage>
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: selectedPlanType == 'expense' ? Colors.blue.shade700 : Colors.grey.shade100,
+                                color: selectedPlanType == 'expense' ? Theme.of(context).colorScheme.primary : Colors.grey.shade50,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: selectedPlanType == 'expense' ? Colors.blue.shade700 : Colors.grey.shade300,
+                                  color: selectedPlanType == 'expense' ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
                                 ),
                               ),
                               alignment: Alignment.center,
@@ -222,10 +222,10 @@ class _PlanningPageState extends State<PlanningPage>
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: selectedPlanType == 'saving' ? Colors.blue.shade700 : Colors.grey.shade100,
+                                color: selectedPlanType == 'saving' ? Theme.of(context).colorScheme.primary : Colors.grey.shade50,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: selectedPlanType == 'saving' ? Colors.blue.shade700 : Colors.grey.shade300,
+                                  color: selectedPlanType == 'saving' ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
                                 ),
                               ),
                               alignment: Alignment.center,
@@ -253,6 +253,7 @@ class _PlanningPageState extends State<PlanningPage>
                     ),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
+                      key: ValueKey(selectedCategory),
                       initialValue: selectedCategory,
                       decoration: InputDecoration(
                         isDense: true,
@@ -290,7 +291,7 @@ class _PlanningPageState extends State<PlanningPage>
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                   ),
                   onPressed: () {
                     if (titleController.text.isEmpty ||
@@ -343,9 +344,9 @@ class _PlanningPageState extends State<PlanningPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
         title: const Text(
           "Planning & Goals",
@@ -369,7 +370,7 @@ class _PlanningPageState extends State<PlanningPage>
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddPlanDialog(context),
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text("Tambah", style: TextStyle(color: Colors.white)),
       ),
@@ -550,13 +551,13 @@ class _PlanningPageState extends State<PlanningPage>
                     ),
                     subtitle: Text(
                       plan.planType == 'saving' ? "Ke: ${plan.category}" : plan.category,
-                      style: TextStyle(fontSize: 12, color: plan.planType == 'saving' ? Colors.blue.shade700 : Colors.grey),
+                      style: TextStyle(fontSize: 12, color: plan.planType == 'saving' ? Theme.of(context).colorScheme.primary : Colors.grey),
                     ),
                     trailing: Text(
                       CurrencyInputFormatter.format(plan.amount),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: plan.isPaid ? Colors.grey : Colors.blue.shade700,
+                        color: plan.isPaid ? Colors.grey : Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     onTap: () => _showAddPlanDialog(context, plan: plan),

@@ -25,7 +25,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final TextEditingController _foodBudgetCtrl = TextEditingController();
   final TextEditingController _transportBudgetCtrl = TextEditingController();
 
-  void _finishOnboarding() {
+  Future<void> _finishOnboarding() async {
     final userCtrl = context.read<UserController>();
     final savingCtrl = context.read<SavingController>();
     final budgetCtrl = context.read<BudgetController>();
@@ -40,7 +40,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
     final double balance = double.tryParse(cleanBalance) ?? 0.0;
     if (balance > 0) {
-      savingCtrl.addSavingAccount("Dompet Utama", balance, "Cash", "", "");
+      await savingCtrl.addSavingAccount(
+        "Dompet Utama",
+        balance,
+        "Cash",
+        "",
+        "",
+      );
     }
 
     final cleanFood = _foodBudgetCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
@@ -58,6 +64,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       );
     }
 
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const DashboardPage()),
@@ -84,7 +91,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     height: 8,
                     decoration: BoxDecoration(
                       color: _currentPage == index
-                          ? Colors.blue.shade700
+                          ? Theme.of(context).colorScheme.primary
                           : Colors.blue.shade100,
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -107,7 +114,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 height: 55,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
                     ),
@@ -250,7 +257,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
               title: const Text("Mode Saldo: Reset Tiap Gajian", style: TextStyle(fontWeight: FontWeight.bold)),
               subtitle: const Text("Aktifkan jika ingin saldo di-reset jadi 0 tiap tanggal gajian. Jika mati, saldo berlanjut seperti m-Banking.", style: TextStyle(fontSize: 12)),
               value: _resetBalanceOnPayday,
-              activeColor: Colors.blue.shade700,
+              activeColor: Theme.of(context).colorScheme.primary,
               onChanged: (val) => setState(() => _resetBalanceOnPayday = val),
             ),
           ),

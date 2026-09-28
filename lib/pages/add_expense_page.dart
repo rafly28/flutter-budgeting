@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:toastification/toastification.dart';
 
 import '../controllers/expense_controller.dart';
 import '../controllers/category_controller.dart';
@@ -131,6 +131,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
     if (!accountOptions.contains(_selectedDestination)) {
       _selectedDestination = accountOptions.first;
     }
+    if (!accountOptions.contains(_selectedSource)) {
+      _selectedSource = accountOptions.first;
+    }
     
     final double sourceBalance = _selectedSource == 'Budget Utama' 
         ? context.watch<ExpenseController>().balance 
@@ -141,9 +144,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
         : (savingController.savings.where((s) => s.name == _selectedDestination).firstOrNull?.balance ?? 0.0);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Column(
@@ -171,7 +174,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
             Container(
               height: 60,
               decoration: BoxDecoration(
-                color: Colors.blue.shade700,
+                color: Theme.of(context).colorScheme.primary,
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(30),
                 ),
@@ -199,7 +202,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                       // 🔹 1. PEMILIHAN TIPE TRANSAKSI
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(15),
                         ),
                         padding: const EdgeInsets.all(4),
@@ -274,6 +277,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
+                          key: ValueKey(_selectedCategory),
                           initialValue: _selectedCategory,
                           decoration: InputDecoration(
                             isDense: true, // 👈 Membuat dropdown lebih compact
@@ -313,7 +317,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                               width: 2,
                             ),
                             borderRadius: BorderRadius.circular(15),
-                            color: Colors.blue.shade50.withOpacity(0.5),
+                            color: Colors.blue.shade50.withValues(alpha: 0.5),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,6 +331,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                 ),
                               ),
                               DropdownButtonFormField<String>(
+                                key: ValueKey(_selectedSource),
                                 initialValue: _selectedSource,
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
@@ -353,7 +358,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                               Text(
                                 "Saldo: ${CurrencyInputFormatter.format(sourceBalance)}",
                                 style: TextStyle(
-                                  color: Colors.blue.shade700,
+                                  color: Theme.of(context).colorScheme.primary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -368,6 +373,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                 ),
                               ),
                               DropdownButtonFormField<String>(
+                                key: ValueKey(_selectedDestination),
                                 initialValue: _selectedDestination,
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
@@ -394,7 +400,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                               Text(
                                 "Saldo: ${CurrencyInputFormatter.format(destBalance)}",
                                 style: TextStyle(
-                                  color: Colors.blue.shade700,
+                                  color: Theme.of(context).colorScheme.primary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -413,6 +419,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
+                          key: ValueKey(_selectedSource),
                           initialValue: _selectedSource,
                           decoration: InputDecoration(
                             isDense: true, // 👈 Membuat dropdown lebih compact
@@ -445,7 +452,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                           child: Text(
                             "Saldo: ${CurrencyInputFormatter.format(sourceBalance)}",
                             style: TextStyle(
-                              color: Colors.blue.shade700,
+                              color: Theme.of(context).colorScheme.primary,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -540,7 +547,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
             boxShadow: isActive
                 ? [
                     BoxShadow(
-                      color: activeColor.withOpacity(0.3),
+                      color: activeColor.withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -561,7 +568,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
     );
   }
 
-  void _handleSave() {
+  Future<void> _handleSave() async {
     if (_amountController.text.isEmpty || _selectedCategory == null) return;
 
     final String cleanAmount = _amountController.text.replaceAll(
@@ -573,35 +580,32 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
     if (_selectedType == 'transfer' &&
         _selectedSource == _selectedDestination) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sumber dan Tujuan tidak boleh sama!')),
+      toastification.show(
+        context: context,
+        title: const Text('Sumber dan Tujuan tidak boleh sama!'),
+        type: ToastificationType.error,
+        style: ToastificationStyle.flat,
+        autoCloseDuration: const Duration(seconds: 3),
       );
       return;
     }
     
     // Validasi saldo
     if (_selectedType == 'transfer' || _selectedType == 'expense') {
-      double sourceBal = 0.0;
-      if (_selectedSource == 'Budget Utama') {
-        sourceBal = context.read<ExpenseController>().balance;
-      } else {
-        final savingCtrl = context.read<SavingController>();
-        try {
-          sourceBal = savingCtrl.savings.firstWhere((s) => s.name == _selectedSource).balance;
-        } catch (_) {}
-      }
-      
-      // Jika ini adalah mode Edit Transfer, kita perlu mengembalikan saldo lama terlebih dahulu
-      // sebelum melakukan pengecekan, atau mengecualikan amount lama.
-      // Untuk sederhananya, kita asumsikan validation strict:
-      double effectiveBal = sourceBal;
-      if (widget.expenseToEdit != null && widget.expenseToEdit!.source == _selectedSource) {
-         effectiveBal += widget.expenseToEdit!.amount;
-      }
+      final expenseController = context.read<ExpenseController>();
+      final sourceBal = expenseController.balanceFor(_selectedSource);
+      final effectiveBal = _balanceAfterRevertingOld(
+        _selectedSource,
+        sourceBal,
+      );
 
       if (amount > effectiveBal) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saldo $_selectedSource tidak mencukupi!')),
+        toastification.show(
+          context: context,
+          title: Text('Saldo $_selectedSource tidak mencukupi!'),
+          type: ToastificationType.error,
+          style: ToastificationStyle.flat,
+          autoCloseDuration: const Duration(seconds: 3),
         );
         return;
       }
@@ -633,7 +637,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
       }
     }
 
-    _saveData(amount);
+    await _saveData(amount);
   }
 
   void _showBudgetWarningDialog(
@@ -666,9 +670,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              _saveData(newAmount);
+              await _saveData(newAmount);
             },
             child: const Text(
               'Tetap Simpan',
@@ -680,45 +684,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
     );
   }
 
-  void _saveData(double amount) {
-    final savingCtrl = context.read<SavingController>();
+  Future<void> _saveData(double amount) async {
     final expenseCtrl = context.read<ExpenseController>();
-
-    if (widget.expenseToEdit != null) {
-      final oldExp = widget.expenseToEdit!;
-      if (oldExp.type == 'transfer') {
-        String oldDest = 'Budget Utama';
-        if (oldExp.note != null && oldExp.note!.startsWith("Dari ")) {
-          final firstDot = oldExp.note!.indexOf(".");
-          if (firstDot != -1) {
-            final parts = oldExp.note!.substring(0, firstDot).split(" ke ");
-            if (parts.length > 1) oldDest = parts[1];
-          }
-        }
-        _updateSavingBalance(
-          savingCtrl,
-          oldExp.source,
-          oldExp.amount,
-          'income',
-        );
-        _updateSavingBalance(savingCtrl, oldDest, oldExp.amount, 'expense');
-      } else {
-        final revertType = oldExp.type == 'expense' ? 'income' : 'expense';
-        _updateSavingBalance(
-          savingCtrl,
-          oldExp.source,
-          oldExp.amount,
-          revertType,
-        );
-      }
-    }
-
-    if (_selectedType == 'transfer') {
-      _updateSavingBalance(savingCtrl, _selectedSource, amount, 'expense');
-      _updateSavingBalance(savingCtrl, _selectedDestination, amount, 'income');
-    } else {
-      _updateSavingBalance(savingCtrl, _selectedSource, amount, _selectedType);
-    }
 
     String finalNote = _noteController.text.trim();
     if (_selectedType == 'transfer') {
@@ -727,20 +694,33 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
     if (widget.expenseToEdit != null) {
       final oldExp = widget.expenseToEdit!;
-      oldExp.amount = amount;
-      oldExp.category = _selectedCategory!;
-      oldExp.note = finalNote;
-      oldExp.date = _selectedDate;
-      oldExp.type = _selectedType;
-      oldExp.source = _selectedSource;
-      oldExp.save();
+      final updatedExpense = Expense(
+        amount: amount,
+        category: _selectedCategory!,
+        note: finalNote,
+        date: _selectedDate,
+        type: _selectedType,
+        source: _selectedSource,
+        planId: oldExp.planId,
+        debtId: oldExp.debtId,
+      );
+      final updated = await expenseCtrl.updateExpense(
+        oldExp,
+        updatedExpense,
+      );
+      if (!mounted) return;
+      if (!updated) {
+        _showSaveError();
+        return;
+      }
 
-      final index = expenseCtrl.expenses.indexOf(oldExp);
-      if (index != -1) expenseCtrl.updateExpense(index, oldExp);
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Transaksi diperbarui!')));
+      toastification.show(
+        context: context,
+        title: const Text('Transaksi diperbarui!'),
+        type: ToastificationType.success,
+        style: ToastificationStyle.flat,
+        autoCloseDuration: const Duration(seconds: 3),
+      );
     } else {
       final expense = Expense(
         amount: amount,
@@ -751,7 +731,12 @@ class _AddExpensePageState extends State<AddExpensePage> {
         source: _selectedSource,
         planId: widget.planToPay?.id,
       );
-      expenseCtrl.addExpense(expense);
+      final added = await expenseCtrl.addExpense(expense);
+      if (!mounted) return;
+      if (!added) {
+        _showSaveError();
+        return;
+      }
       
       // Jika dari Planning, tandai sebagai sudah dibayar
       if (widget.planToPay != null) {
@@ -762,25 +747,57 @@ class _AddExpensePageState extends State<AddExpensePage> {
         planCtrl.updatePlanByKey(plan.key, plan);
       }
       
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Transaksi disimpan!')));
+      toastification.show(
+        context: context,
+        title: const Text('Transaksi disimpan!'),
+        type: ToastificationType.success,
+        style: ToastificationStyle.flat,
+        autoCloseDuration: const Duration(seconds: 3),
+      );
     }
 
-    Navigator.pop(context, true); // Return true to indicate success
+    if (mounted) {
+      Navigator.pop(context, true); // Return true to indicate success
+    }
   }
 
-  void _updateSavingBalance(
-    SavingController ctrl,
-    String accountName,
-    double amount,
-    String type,
-  ) {
-    if (accountName != 'Budget Utama') {
-      try {
-        final account = ctrl.savings.firstWhere((s) => s.name == accountName);
-        ctrl.updateBalance(account, amount, type);
-      } catch (_) {}
+  double _balanceAfterRevertingOld(String accountName, double currentBalance) {
+    final oldExp = widget.expenseToEdit;
+    if (oldExp == null) return currentBalance;
+
+    var balance = currentBalance;
+    if (oldExp.source == accountName) {
+      if (oldExp.type == 'income') {
+        balance -= oldExp.amount;
+      } else {
+        balance += oldExp.amount;
+      }
     }
+
+    if (oldExp.type == 'transfer' &&
+        _transferDestination(oldExp.note) == accountName) {
+      balance -= oldExp.amount;
+    }
+    return balance;
+  }
+
+  String? _transferDestination(String? note) {
+    if (note == null || !note.startsWith('Dari ')) return null;
+    final firstDot = note.indexOf('.');
+    if (firstDot == -1) return null;
+    final parts = note.substring(0, firstDot).split(' ke ');
+    return parts.length > 1 ? parts[1] : null;
+  }
+
+  void _showSaveError() {
+    toastification.show(
+      context: context,
+      title: const Text(
+        'Transaksi gagal disimpan karena akun terkait tidak ditemukan.',
+      ),
+      type: ToastificationType.error,
+      style: ToastificationStyle.flat,
+      autoCloseDuration: const Duration(seconds: 3),
+    );
   }
 }

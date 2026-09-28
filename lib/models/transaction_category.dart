@@ -10,5 +10,20 @@ class TransactionCategory extends HiveObject {
   @HiveField(1)
   String type; // "income" atau "expense"
 
-  TransactionCategory({required this.name, required this.type});
+  @HiveField(2)
+  int? iconCodePoint;
+
+  @HiveField(3)
+  String? iconFontFamily;
+
+  @HiveField(4, defaultValue: 'needs')
+  String budgetGroup; // 'needs', 'wants', 'savings'
+
+  TransactionCategory({
+    required this.name,
+    required this.type,
+    this.iconCodePoint,
+    this.iconFontFamily,
+    this.budgetGroup = 'needs',
+  });
 }

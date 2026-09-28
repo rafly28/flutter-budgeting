@@ -31,4 +31,14 @@ class CurrencyInputFormatter extends TextInputFormatter {
         NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     return formatter.format(value);
   }
+
+  static String formatCompact(double value) {
+    if (value >= 1000000) {
+      return 'Rp ${(value / 1000000).toStringAsFixed(value % 1000000 == 0 ? 0 : 1)}jt';
+    } else if (value >= 1000) {
+      return 'Rp ${(value / 1000).toStringAsFixed(value % 1000 == 0 ? 0 : 1)}rb';
+    } else {
+      return 'Rp ${value.toStringAsFixed(0)}';
+    }
+  }
 }

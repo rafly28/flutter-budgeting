@@ -8,11 +8,11 @@ class NotificationService {
 
   static Future<void> init() async {
     tz.initializeTimeZones();
-    _notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.requestNotificationsPermission();
+
+    // FIX: requestNotificationsPermission dihapus dari init().
+    // Dipanggil tanpa await sebelumnya → race condition saat permission baru di-grant.
+    // Permission sudah di-grant via Settings — tidak perlu request lagi di sini.
+    // ponytail: re-request permission → panggil requestPermission() terpisah saat user toggle notif di Settings.
 
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/launcher_icon');
@@ -22,10 +22,18 @@ class NotificationService {
     await _notificationsPlugin.initialize(initializationSettings);
   }
 
+  /// Minta izin notifikasi secara eksplisit (panggil dari UI, bukan dari init).
+  static Future<bool?> requestPermission() async {
+    return _notificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+  }
+
   static Future<void> scheduleDailyReminder() async {
     await _notificationsPlugin.zonedSchedule(
       0,
-      'Lupa Catat Sesuatu? 🤔',
+      'Lupa Catat Sesuatu? \u{1F914}',
       'Yuk, luangkan 1 menit untuk mencatat transaksi hari ini agar budget tetap aman!',
       _nextInstanceOfEightPM(),
       const NotificationDetails(
@@ -51,7 +59,7 @@ class NotificationService {
     await cancelNotification();
     await _notificationsPlugin.zonedSchedule(
       0,
-      'Lupa Catat Sesuatu? 🤔',
+      'Lupa Catat Sesuatu? \u{1F914}',
       'Yuk, luangkan 1 menit untuk mencatat transaksi hari ini agar budget tetap aman!',
       _nextInstanceOfEightPM(skipToday: true),
       const NotificationDetails(

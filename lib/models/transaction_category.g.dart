@@ -19,17 +19,26 @@ class TransactionCategoryAdapter extends TypeAdapter<TransactionCategory> {
     return TransactionCategory(
       name: fields[0] as String,
       type: fields[1] as String,
+      iconCodePoint: fields[2] as int?,
+      iconFontFamily: fields[3] as String?,
+      budgetGroup: fields[4] == null ? 'needs' : fields[4] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, TransactionCategory obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
-      ..write(obj.type);
+      ..write(obj.type)
+      ..writeByte(2)
+      ..write(obj.iconCodePoint)
+      ..writeByte(3)
+      ..write(obj.iconFontFamily)
+      ..writeByte(4)
+      ..write(obj.budgetGroup);
   }
 
   @override
