@@ -202,49 +202,46 @@ class DashboardPage extends StatelessWidget {
           // 🔹 BAGIAN 2: MENU CEPAT (GRID)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                children: [
-                  _buildQuickMenu(
-                    context,
-                    "History",
-                    FluentIcons.history_24_regular,
-                    Colors.orange.shade600,
-                    const HistoryPage(),
-                  ).animate().fadeIn(delay: 300.ms).slideX(begin: 0.2),
-                  _buildQuickMenu(
-                    context,
-                    "Statistik",
-                    FluentIcons.data_bar_vertical_24_regular,
-                    Colors.purple.shade600,
-                    const StatisticPage(),
-                  ).animate().fadeIn(delay: 400.ms).slideX(begin: 0.2),
-                  _buildQuickMenu(
-                    context,
-                    "Tabungan",
-                    FluentIcons.wallet_24_regular,
-                    Colors.teal.shade600,
-                    const SavingsPage(),
-                  ).animate().fadeIn(delay: 500.ms).slideX(begin: 0.2),
-                  _buildQuickMenu(
-                    context,
-                    "Planning",
-                    FluentIcons.clipboard_task_24_regular,
-                    Colors.blue.shade600,
-                    const PlanningPage(),
-                  ).animate().fadeIn(delay: 600.ms).slideX(begin: 0.2),
-                  _buildQuickMenu(
-                    context,
-                    "Hutang",
-                    FluentIcons.handshake_24_regular,
-                    Colors.indigo.shade600,
-                    const DebtPage(),
-                    hasBadge: context.watch<DebtController>().activeHutang.isNotEmpty,
-                  ).animate().fadeIn(delay: 700.ms).slideX(begin: 0.2),
-                ],
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildQuickMenu(
+                  context,
+                  "History",
+                  FluentIcons.history_24_regular,
+                  Colors.orange.shade600,
+                  const HistoryPage(),
+                ).animate().fadeIn(delay: 300.ms).slideX(begin: 0.2),
+                _buildQuickMenu(
+                  context,
+                  "Statistik",
+                  FluentIcons.data_bar_vertical_24_regular,
+                  Colors.purple.shade600,
+                  const StatisticPage(),
+                ).animate().fadeIn(delay: 400.ms).slideX(begin: 0.2),
+                _buildQuickMenu(
+                  context,
+                  "Tabungan",
+                  FluentIcons.wallet_24_regular,
+                  Colors.teal.shade600,
+                  const SavingsPage(),
+                ).animate().fadeIn(delay: 500.ms).slideX(begin: 0.2),
+                _buildQuickMenu(
+                  context,
+                  "Planning",
+                  FluentIcons.clipboard_task_24_regular,
+                  Colors.blue.shade600,
+                  const PlanningPage(),
+                ).animate().fadeIn(delay: 600.ms).slideX(begin: 0.2),
+                _buildQuickMenu(
+                  context,
+                  "Hutang",
+                  FluentIcons.handshake_24_regular,
+                  Colors.indigo.shade600,
+                  const DebtPage(),
+                  hasBadge: context.watch<DebtController>().activeHutang.isNotEmpty,
+                ).animate().fadeIn(delay: 700.ms).slideX(begin: 0.2),
+              ],
             ),
           ),
 
@@ -498,13 +495,12 @@ class DashboardPage extends StatelessWidget {
     Widget page, {
     bool hasBadge = false,
   }) {
-    return GestureDetector(
-      onTap: () =>
-          Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
-      child: Container(
-        width: 72,
-        margin: const EdgeInsets.symmetric(horizontal: 6),
-        child: Column(
+    return Expanded(
+      child: GestureDetector(
+        onTap: () =>
+            Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
+        child: Container(
+          child: Column(
           children: [
             Badge(
               isLabelVisible: hasBadge,
@@ -540,8 +536,9 @@ class DashboardPage extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
   Widget _build5030Row(String label, double real, double target, Color labelColor) {
     final double pct = target > 0 ? (real / target).clamp(0.0, 1.0) : 0.0;
     final Color barColor = pct >= 1.0 ? Colors.red : (pct >= 0.8 ? Colors.orange : labelColor);

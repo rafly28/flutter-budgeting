@@ -34,6 +34,11 @@ class _SavingsPageState extends State<SavingsPage> {
     final savingController = context.watch<SavingController>();
     final expenseController = context.watch<ExpenseController>();
     final savings = savingController.savings;
+    if (_currentCardIndex >= savings.length && savings.isNotEmpty) {
+      _currentCardIndex = savings.length - 1;
+    } else if (savings.isEmpty) {
+      _currentCardIndex = 0;
+    }
     final totalBalance = savingController.totalSavingsBalance;
 
     return Scaffold(
