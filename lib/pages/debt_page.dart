@@ -8,7 +8,6 @@ import '../controllers/expense_controller.dart';
 import '../controllers/saving_controller.dart';
 import '../models/debt.dart';
 import '../utils/currency_input_formatter.dart';
-import 'add_debt_page.dart';
 
 class DebtPage extends StatelessWidget {
   const DebtPage({super.key});
@@ -22,11 +21,11 @@ class DebtPage extends StatelessWidget {
         appBar: AppBar(
           title: const Text(
             "Hutang & Piutang",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
           backgroundColor: Theme.of(context).colorScheme.primary,
           elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.white),
+          
           bottom: const TabBar(
             indicatorColor: Colors.white,
             indicatorWeight: 3,
@@ -43,20 +42,6 @@ class DebtPage extends StatelessWidget {
             _DebtList(type: 'piutang'),
             _DebtList(type: 'hutang'),
           ],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddDebtPage()),
-            );
-          },
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text(
-            "Catat Baru",
-            style: TextStyle(color: Colors.white),
-          ),
         ),
       ),
     );
@@ -192,7 +177,7 @@ class _DebtList extends StatelessWidget {
                   children: [
                     Text(
                       "Total: ${CurrencyInputFormatter.format(debt.amount)}",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Text(
                       "${(progress * 100).toStringAsFixed(1)}%",
@@ -307,8 +292,7 @@ class _DebtList extends StatelessWidget {
                       );
                     },
               child: Text(
-                isDeleting ? "Menghapus..." : "Hapus",
-                style: const TextStyle(color: Colors.white),
+                isDeleting ? "Menghapus..." : "Hapus"
               ),
             ),
           ],
@@ -362,7 +346,7 @@ class _DebtList extends StatelessWidget {
                 children: [
                   Text(
                     "Sisa: ${CurrencyInputFormatter.format(remaining)}",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 15),
                   TextField(
@@ -503,8 +487,7 @@ class _DebtList extends StatelessWidget {
                         );
                       },
                 child: Text(
-                  isSaving ? "Menyimpan..." : "Simpan",
-                  style: const TextStyle(color: Colors.white),
+                  isSaving ? "Menyimpan..." : "Simpan"
                 ),
               ),
             ],

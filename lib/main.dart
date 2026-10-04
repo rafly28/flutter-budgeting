@@ -112,6 +112,9 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final userController = context.watch<UserController>();
     final primaryColor = Color(userController.themeColor);
+    // Tema pastel (Baby Pink, Peach, dll) butuh teks gelap agar terbaca
+    final isLight = ThemeData.estimateBrightnessForColor(primaryColor) == Brightness.light;
+    final onPrimary = isLight ? const Color(0xFF1E293B) : Colors.white;
 
     return ToastificationWrapper(
       child: MaterialApp(
@@ -121,6 +124,7 @@ class MainApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF0F172A),
             primary: primaryColor,
+            onPrimary: onPrimary,
             secondary: const Color(0xFF3B82F6),
             surface: Colors.grey.shade50,
           ),
@@ -129,14 +133,24 @@ class MainApp extends StatelessWidget {
           ),
           appBarTheme: AppBarTheme(
             backgroundColor: primaryColor,
-            foregroundColor: Colors.white,
+            foregroundColor: onPrimary,
             elevation: 0,
             centerTitle: true,
-            systemOverlayStyle: SystemUiOverlayStyle.light,
+            systemOverlayStyle: isLight ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
+          ),
+          floatingActionButtonTheme: FloatingActionButtonThemeData(
+            backgroundColor: primaryColor,
+            foregroundColor: onPrimary,
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: onPrimary,
+            ),
           ),
           cardTheme: CardThemeData(
             elevation: 2,
-            shadowColor: Colors.black.withValues(alpha: 0.05),
+            shadowColor: Colors.black.withOpacity(0.05),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),

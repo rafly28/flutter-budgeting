@@ -3,6 +3,13 @@ import 'package:provider/provider.dart';
 import '../controllers/category_controller.dart';
 import '../models/transaction_category.dart';
 
+const List<IconData> _availableIcons = [
+  Icons.category, Icons.fastfood, Icons.directions_car, Icons.shopping_cart,
+  Icons.local_hospital, Icons.school, Icons.home, Icons.flight,
+  Icons.phone_android, Icons.pets, Icons.sports_esports, Icons.work,
+  Icons.account_balance, Icons.attach_money, Icons.credit_card, Icons.monetization_on,
+];
+
 class CategoryManagementPage extends StatelessWidget {
   const CategoryManagementPage({super.key});
 
@@ -13,20 +20,17 @@ class CategoryManagementPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.grey.shade100, // Background senada Dashboard
         appBar: AppBar(
-          backgroundColor: Colors.blue.shade700,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.white),
           title: const Text(
             'Kelola Kategori',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          bottom: const TabBar(
-            indicatorColor: Colors.white,
+          bottom: TabBar(
+            indicatorColor: Theme.of(context).colorScheme.onPrimary,
             indicatorWeight: 3,
-            labelStyle: TextStyle(fontWeight: FontWeight.bold),
-            unselectedLabelColor: Colors.white70,
-            labelColor: Colors.white,
-            tabs: [
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+            unselectedLabelColor: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
+            labelColor: Theme.of(context).colorScheme.onPrimary,
+            tabs: const [
               Tab(text: 'Pengeluaran'),
               Tab(text: 'Pemasukan'),
             ],
@@ -38,7 +42,7 @@ class CategoryManagementPage extends StatelessWidget {
             Container(
               height: 20,
               decoration: BoxDecoration(
-                color: Colors.blue.shade700,
+                color: Theme.of(context).colorScheme.primary,
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(30),
                 ),
@@ -56,11 +60,10 @@ class CategoryManagementPage extends StatelessWidget {
         ),
         // 🔹 FAB Konsisten (Center & Extended)
         floatingActionButton: FloatingActionButton.extended(
-          backgroundColor: Colors.blue.shade700,
-          icon: const Icon(Icons.add, color: Colors.white),
+          icon: const Icon(Icons.add),
           label: const Text(
             "Kategori Baru",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
           onPressed: () => _showCategoryDialog(context),
         ),
@@ -73,6 +76,7 @@ class CategoryManagementPage extends StatelessWidget {
   void _showCategoryDialog(BuildContext context) {
     final nameController = TextEditingController();
     String selectedType = 'expense';
+    IconData selectedIcon = _availableIcons.first;
 
     showDialog(
       context: context,
@@ -123,6 +127,29 @@ class CategoryManagementPage extends StatelessWidget {
                   ],
                   onChanged: (val) => setState(() => selectedType = val!),
                 ),
+                const SizedBox(height: 15),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Pilih Ikon",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: _availableIcons.map((icon) {
+                    final bool isSelected = selectedIcon == icon;
+                    return GestureDetector(
+                      onTap: () => setState(() => selectedIcon = icon),
+                      child: CircleAvatar(
+                        backgroundColor: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.15) : Colors.grey.shade100,
+                        child: Icon(icon, color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade600),
+                      ),
+                    );
+                  }).toList(),
+                ),
               ],
             ),
             actions: [
@@ -135,7 +162,6 @@ class CategoryManagementPage extends StatelessWidget {
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade700,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -145,14 +171,13 @@ class CategoryManagementPage extends StatelessWidget {
                     context.read<CategoryController>().addCategory(
                       nameController.text.trim(),
                       selectedType,
+                      iconCodePoint: selectedIcon.codePoint,
+                      iconFontFamily: selectedIcon.fontFamily,
                     );
                     Navigator.pop(context);
                   }
                 },
-                child: const Text(
-                  'Simpan',
-                  style: TextStyle(color: Colors.white),
-                ),
+                child: const Text('Simpan'),
               ),
             ],
           );
@@ -228,7 +253,7 @@ class _CategoryList extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.edit_note, color: Colors.blue),
+                  icon: Icon(Icons.edit_note, color: Theme.of(context).colorScheme.primary),
                   onPressed: () => _showEditDialog(context, category),
                 ),
                 IconButton(
@@ -245,51 +270,88 @@ class _CategoryList extends StatelessWidget {
 
   void _showEditDialog(BuildContext context, TransactionCategory category) {
     final nameController = TextEditingController(text: category.name);
+    IconData selectedIcon = category.iconCodePoint != null && category.iconFontFamily != null
+        ? IconData(category.iconCodePoint!, fontFamily: category.iconFontFamily)
+        : _availableIcons.first;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Edit Kategori',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: TextField(
-          controller: nameController,
-          decoration: InputDecoration(
-            labelText: 'Nama Kategori',
-            filled: true,
-            fillColor: Colors.grey.shade50,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(15),
-              borderSide: BorderSide.none,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text(
+              'Edit Kategori',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-          ),
-          textCapitalization: TextCapitalization.words,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade700,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Kategori',
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 15),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Pilih Ikon",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: _availableIcons.map((icon) {
+                    final bool isSelected = selectedIcon == icon;
+                    return GestureDetector(
+                      onTap: () => setState(() => selectedIcon = icon),
+                      child: CircleAvatar(
+                        backgroundColor: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.15) : Colors.grey.shade100,
+                        child: Icon(icon, color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade600),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Batal', style: TextStyle(color: Colors.grey)),
               ),
-            ),
-            onPressed: () {
-              if (nameController.text.isNotEmpty) {
-                context.read<CategoryController>().updateCategory(
-                  category,
-                  nameController.text.trim(),
-                );
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  if (nameController.text.isNotEmpty) {
+                    context.read<CategoryController>().updateCategory(
+                      category,
+                      nameController.text.trim(),
+                      iconCodePoint: selectedIcon.codePoint,
+                      iconFontFamily: selectedIcon.fontFamily,
+                    );
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text('Simpan'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -311,6 +373,7 @@ class _CategoryList extends StatelessWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -319,7 +382,7 @@ class _CategoryList extends StatelessWidget {
               context.read<CategoryController>().deleteCategory(category);
               Navigator.pop(context);
             },
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+            child: const Text('Hapus'),
           ),
         ],
       ),

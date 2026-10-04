@@ -257,7 +257,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
               title: const Text("Mode Saldo: Reset Tiap Gajian", style: TextStyle(fontWeight: FontWeight.bold)),
               subtitle: const Text("Aktifkan jika ingin saldo di-reset jadi 0 tiap tanggal gajian. Jika mati, saldo berlanjut seperti m-Banking.", style: TextStyle(fontSize: 12)),
               value: _resetBalanceOnPayday,
-              activeColor: Theme.of(context).colorScheme.primary,
+              activeThumbColor: Theme.of(context).colorScheme.primary,
               onChanged: (val) => setState(() => _resetBalanceOnPayday = val),
             ),
           ),

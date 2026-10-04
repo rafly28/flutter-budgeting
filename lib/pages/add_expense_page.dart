@@ -8,8 +8,10 @@ import '../controllers/category_controller.dart';
 import '../controllers/budget_controller.dart';
 import '../controllers/saving_controller.dart';
 import '../controllers/plan_controller.dart';
+import '../controllers/debt_controller.dart';
 import '../models/expense.dart';
 import '../models/plan_item.dart';
+import '../models/debt.dart';
 import '../utils/currency_input_formatter.dart';
 
 class AddExpensePage extends StatefulWidget {
@@ -27,13 +29,23 @@ class AddExpensePage extends StatefulWidget {
 class _AddExpensePageState extends State<AddExpensePage> {
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
+  final _nameController = TextEditingController();
 
   String _selectedType = 'expense';
+  String _debtType = 'piutang';
   String? _selectedCategory;
   String _selectedSource = 'Budget Utama';
   String _selectedDestination = 'Budget Utama';
 
   late DateTime _selectedDate;
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _noteController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -100,6 +112,10 @@ class _AddExpensePageState extends State<AddExpensePage> {
       setState(() => _selectedCategory = 'Transfer');
       return;
     }
+    if (_selectedType == 'debt') {
+      setState(() => _selectedCategory = 'Debt');
+      return;
+    }
     final catController = context.read<CategoryController>();
     final categories = _selectedType == 'expense'
         ? catController.expenseCategories
@@ -148,20 +164,20 @@ class _AddExpensePageState extends State<AddExpensePage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               "Tanggal Transaksi",
-              style: TextStyle(fontSize: 12, color: Colors.white70),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7)),
             ),
             Text(
               DateFormat('EEEE, d MMMM y', 'id_ID').format(_selectedDate),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onPrimary,
               ),
             ),
           ],
@@ -223,9 +239,104 @@ class _AddExpensePageState extends State<AddExpensePage> {
                               'transfer',
                               Colors.blue,
                             ),
+                            if (widget.expenseToEdit == null &&
+                                widget.planToPay == null &&
+                                widget.savingDestination == null)
+                              _buildTypeButton(
+                                'Hutang',
+                                'debt',
+                                Colors.orange,
+                              ),
                           ],
                         ),
                       ),
+                      if (_selectedType == 'debt') ...[
+                        const SizedBox(height: 18),
+                        const Text(
+                          "Jenis Catatan",
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _debtType = 'piutang'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: _debtType == 'piutang' ? Colors.green : Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: _debtType == 'piutang' ? Colors.green : Colors.grey.shade300),
+                                  ),
+                                  child: Text(
+                                    'Piutang',
+                                    style: TextStyle(
+                                      color: _debtType == 'piutang' ? Colors.white : Colors.grey.shade600,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _debtType = 'hutang'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: _debtType == 'hutang' ? Colors.red : Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: _debtType == 'hutang' ? Colors.red : Colors.grey.shade300),
+                                  ),
+                                  child: Text(
+                                    'Hutang',
+                                    style: TextStyle(
+                                      color: _debtType == 'hutang' ? Colors.white : Colors.grey.shade600,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        const Text(
+                          "Nama Orang",
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _nameController,
+                          decoration: InputDecoration(
+                            hintText: "Cth: Budi",
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 18), // 👈 Dirapatkan
                       // 🔹 2. NOMINAL
                       const Text(
@@ -266,7 +377,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                       ),
                       const SizedBox(height: 15), // 👈 Dirapatkan
                       // 🔹 3. KATEGORI
-                      if (_selectedType != 'transfer') ...[
+                      if (_selectedType != 'transfer' && _selectedType != 'debt') ...[
                         const Text(
                           "Kategori",
                           style: TextStyle(
@@ -277,7 +388,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          key: ValueKey(_selectedCategory),
+                          key: ValueKey('cat_$_selectedCategory'),
                           initialValue: _selectedCategory,
                           decoration: InputDecoration(
                             isDense: true, // 👈 Membuat dropdown lebih compact
@@ -313,11 +424,11 @@ class _AddExpensePageState extends State<AddExpensePage> {
                           padding: const EdgeInsets.all(12), // 👈 Dirapatkan
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: Colors.blue.shade100,
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                               width: 2,
                             ),
                             borderRadius: BorderRadius.circular(15),
-                            color: Colors.blue.shade50.withValues(alpha: 0.5),
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,7 +442,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                 ),
                               ),
                               DropdownButtonFormField<String>(
-                                key: ValueKey(_selectedSource),
+                                key: ValueKey('src_$_selectedSource'),
                                 initialValue: _selectedSource,
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
@@ -373,7 +484,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                 ),
                               ),
                               DropdownButtonFormField<String>(
-                                key: ValueKey(_selectedDestination),
+                                key: ValueKey('dst_$_selectedDestination'),
                                 initialValue: _selectedDestination,
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
@@ -409,9 +520,11 @@ class _AddExpensePageState extends State<AddExpensePage> {
                           ),
                         ),
                       ] else ...[
-                        const Text(
-                          "Sumber / Tujuan Dana",
-                          style: TextStyle(
+                        Text(
+                          _selectedType == 'debt' 
+                              ? (_debtType == 'piutang' ? "Dari (Sumber Dana)" : "Ke (Tujuan Dana)")
+                              : "Sumber / Tujuan Dana",
+                          style: const TextStyle(
                             color: Colors.grey,
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
@@ -419,7 +532,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          key: ValueKey(_selectedSource),
+                          key: ValueKey('src_$_selectedSource'),
                           initialValue: _selectedSource,
                           decoration: InputDecoration(
                             isDense: true, // 👈 Membuat dropdown lebih compact
@@ -462,14 +575,15 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
                       const SizedBox(height: 15), // 👈 Dirapatkan
                       // 🔹 5. CATATAN
-                      const Text(
-                        "Catatan (Opsional)",
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                      if (_selectedType != 'debt') ...[
+                        const Text(
+                          "Catatan (Opsional)",
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: _noteController,
@@ -485,6 +599,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         ),
                         maxLines: 2,
                       ),
+                      ],
 
                       const SizedBox(height: 25), // 👈 Dirapatkan
                       // 🔹 6. TOMBOL SIMPAN
@@ -501,7 +616,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                 ? Colors.red.shade600
                                 : (_selectedType == 'income'
                                       ? Colors.green.shade600
-                                      : Colors.blue.shade600),
+                                      : (_selectedType == 'transfer' ? Colors.blue.shade600 : Colors.orange.shade600)),
                           ),
                           onPressed: _handleSave,
                           child: Text(
@@ -547,7 +662,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
             boxShadow: isActive
                 ? [
                     BoxShadow(
-                      color: activeColor.withValues(alpha: 0.3),
+                      color: activeColor.withOpacity(0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -569,7 +684,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
   }
 
   Future<void> _handleSave() async {
-    if (_amountController.text.isEmpty || _selectedCategory == null) return;
+    if (_amountController.text.isEmpty) return;
+    if (_selectedType != 'debt' && _selectedCategory == null) return;
 
     final String cleanAmount = _amountController.text.replaceAll(
       RegExp(r'[^0-9]'),
@@ -577,6 +693,10 @@ class _AddExpensePageState extends State<AddExpensePage> {
     );
     final double amount = double.tryParse(cleanAmount) ?? 0.0;
     if (amount <= 0) return;
+
+    if (_selectedType == 'debt') {
+      return _saveDebt(amount);
+    }
 
     if (_selectedType == 'transfer' &&
         _selectedSource == _selectedDestination) {
@@ -675,8 +795,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
               await _saveData(newAmount);
             },
             child: const Text(
-              'Tetap Simpan',
-              style: TextStyle(color: Colors.white),
+              'Tetap Simpan'
             ),
           ),
         ],
@@ -799,5 +918,66 @@ class _AddExpensePageState extends State<AddExpensePage> {
       style: ToastificationStyle.flat,
       autoCloseDuration: const Duration(seconds: 3),
     );
+  }
+
+  Future<void> _saveDebt(double amount) async {
+    if (_nameController.text.trim().isEmpty) {
+      toastification.show(
+        context: context,
+        title: const Text('Nama wajib diisi.'),
+        type: ToastificationType.error,
+        style: ToastificationStyle.flat,
+        autoCloseDuration: const Duration(seconds: 3),
+      );
+      return;
+    }
+
+    final expenseController = context.read<ExpenseController>();
+    if (_debtType == 'piutang' &&
+        amount > expenseController.balanceFor(_selectedSource)) {
+      toastification.show(
+        context: context,
+        title: Text('Saldo $_selectedSource tidak mencukupi.'),
+        type: ToastificationType.error,
+        style: ToastificationStyle.flat,
+        autoCloseDuration: const Duration(seconds: 3),
+      );
+      return;
+    }
+
+    // Need to import DebtController and Debt at the top. Wait, they are imported?
+    // Let's check imports.
+    final debt = Debt(
+      type: _debtType,
+      personName: _nameController.text.trim(),
+      amount: amount,
+      createdAt: _selectedDate,
+    );
+
+    final saved = await context.read<DebtController>().addDebt(
+      debt,
+      _selectedSource,
+    );
+    if (!mounted) return;
+
+    if (!saved) {
+      toastification.show(
+        context: context,
+        title: const Text('Catatan gagal disimpan. Periksa akun dan saldo.'),
+        type: ToastificationType.error,
+        style: ToastificationStyle.flat,
+        autoCloseDuration: const Duration(seconds: 3),
+      );
+      return;
+    }
+
+    toastification.show(
+      context: context,
+      title: const Text('Catatan berhasil disimpan.'),
+      type: ToastificationType.success,
+      style: ToastificationStyle.flat,
+      autoCloseDuration: const Duration(seconds: 3),
+    );
+    Navigator.pop(context, true);
   }
 }

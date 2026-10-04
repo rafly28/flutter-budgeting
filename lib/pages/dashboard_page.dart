@@ -13,6 +13,7 @@ import '../controllers/debt_controller.dart';
 import '../models/expense.dart';
 import '../widgets/finance_summary_card.dart'; // Jika masih dipakai, biarkan
 import '../utils/currency_input_formatter.dart';
+import '../widgets/transaction_list_tile.dart';
 import 'history_page.dart';
 import 'add_expense_page.dart';
 import 'settings_page.dart';
@@ -93,22 +94,22 @@ class DashboardPage extends StatelessWidget {
           children: [
             Text(
               "Halo, ${user?.name ?? "User"}",
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onPrimary,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               DateFormat('EEEE, d MMMM y', 'id_ID').format(now),
-              style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
+              style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7)),
             ),
           ],
         ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0),
         actions: [
           IconButton(
-            icon: const Icon(FluentIcons.settings_24_regular, color: Colors.white),
+            icon: Icon(FluentIcons.settings_24_regular, color: Theme.of(context).colorScheme.onPrimary),
             tooltip: 'Pengaturan',
             onPressed: () => Navigator.push(
               context,
@@ -162,8 +163,9 @@ class DashboardPage extends StatelessWidget {
                 final catList = categoryController.expenseCategories;
                 final cat = catList.where((c) => c.name == e.category).firstOrNull;
                 final group = cat?.budgetGroup ?? 'needs';
-                if (group == 'wants') realWants += e.amount;
-                else if (group == 'savings') realSavings += e.amount;
+                if (group == 'wants') {
+                  realWants += e.amount;
+                } else if (group == 'savings') realSavings += e.amount;
                 else realNeeds += e.amount;
               }
               final targetNeeds = totalIncome * 0.50;
@@ -347,119 +349,7 @@ class DashboardPage extends StatelessWidget {
                           );
                           return true;
                         },
-                        child: Card(
-                          elevation: 1,
-                          margin: const EdgeInsets.symmetric(vertical: 6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            leading: CircleAvatar(
-                              radius: 25,
-                              backgroundColor: exp.type == "transfer"
-                                  ? Colors.blue.shade50
-                                  : (exp.type == "income"
-                                        ? Colors.green.shade50
-                                        : Colors.red.shade50),
-                              child: Builder(builder: (ctx) {
-                                final catList = exp.type == 'income'
-                                    ? categoryController.incomeCategories
-                                    : categoryController.expenseCategories;
-                                final cat = catList.where((c) => c.name == exp.category).firstOrNull;
-                                final iconColor = exp.type == "transfer"
-                                    ? Colors.blue
-                                    : (exp.type == "income" ? Colors.green : Colors.red);
-                                if (exp.type != 'transfer' && cat?.iconCodePoint != null) {
-                                  return Icon(
-                                    IconData(cat!.iconCodePoint!, fontFamily: cat.iconFontFamily),
-                                    color: iconColor,
-                                  );
-                                }
-                                return Icon(
-                                  exp.type == "transfer"
-                                      ? Icons.sync_alt
-                                      : (exp.type == "income" ? Icons.arrow_downward : Icons.arrow_upward),
-                                  color: iconColor,
-                                );
-                              }),
-                            ),
-                            title: Text(
-                              exp.note != null && exp.note!.isNotEmpty ? exp.note! : exp.category,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 6.0),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: exp.type == 'transfer' ? Colors.blue.shade50 : (exp.type == 'income' ? Colors.green.shade50 : Colors.orange.shade50),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      exp.category,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: exp.type == 'transfer' ? Colors.blue.shade700 : (exp.type == 'income' ? Colors.green.shade700 : Colors.orange.shade700),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      (exp.note != null && exp.note!.isNotEmpty) ? exp.note! : exp.source,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            trailing: Text(
-                              CurrencyInputFormatter.format(exp.amount),
-                              style: TextStyle(
-                                color: exp.type == "transfer"
-                                    ? Colors.blue
-                                    : (exp.type == "income"
-                                          ? Colors.green
-                                          : Colors.red),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                            onTap: () {
-                              if (exp.debtId != null) {
-                                toastification.show(
-                                  context: context,
-                                  title: const Text(
-                                    "Kelola transaksi ini dari menu Hutang & Piutang.",
-                                  ),
-                                  type: ToastificationType.info,
-                                  style: ToastificationStyle.flat,
-                                  autoCloseDuration: const Duration(seconds: 3),
-                                );
-                                return;
-                              }
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      AddExpensePage(expenseToEdit: exp),
-                                ),
-                              );
-                            },
-                          ),
-                        ).animate().fadeIn(delay: (100 * (index < 5 ? index : 5)).ms).slideX(begin: 0.1),
+                        child: TransactionListTile(exp: exp),
                       );
                     },
                   ),
@@ -469,11 +359,10 @@ class DashboardPage extends StatelessWidget {
 
       // 🔹 TOMBOL TAMBAH TRANSAKSI
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        icon: const Icon(FluentIcons.add_24_regular, color: Colors.white),
+        icon: const Icon(FluentIcons.add_24_regular),
         label: const Text(
           "Catat",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         onPressed: () {
           Navigator.push(
@@ -512,7 +401,7 @@ class DashboardPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: color.withValues(alpha: 0.15),
+                      color: color.withOpacity(0.15),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),

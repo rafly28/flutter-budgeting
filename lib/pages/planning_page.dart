@@ -105,7 +105,7 @@ class _PlanningPageState extends State<PlanningPage>
               backgroundColor: Colors.white,
               title: Text(
                 plan == null ? "Tambah Tagihan/Goal" : "Edit Tagihan/Goal",
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -329,8 +329,7 @@ class _PlanningPageState extends State<PlanningPage>
                     Navigator.pop(context);
                   },
                   child: const Text(
-                    "Simpan",
-                    style: TextStyle(color: Colors.white),
+                    "Simpan"
                   ),
                 ),
               ],
@@ -350,9 +349,9 @@ class _PlanningPageState extends State<PlanningPage>
         elevation: 0,
         title: const Text(
           "Planning & Goals",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -372,7 +371,7 @@ class _PlanningPageState extends State<PlanningPage>
         onPressed: () => _showAddPlanDialog(context),
         backgroundColor: Theme.of(context).colorScheme.primary,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text("Tambah", style: TextStyle(color: Colors.white)),
+        label: const Text("Tambah", ),
       ),
     );
   }
@@ -483,7 +482,7 @@ class _PlanningPageState extends State<PlanningPage>
                   value: totalPlanned > 0 ? totalPaid / totalPlanned : 0,
                   minHeight: 8,
                   backgroundColor: Colors.grey.shade200,
-                  color: Colors.blue.shade500,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ],
@@ -686,7 +685,7 @@ class _PlanningPageState extends State<PlanningPage>
             ),
           ),
         );
-      }).toList(),
+      }),
       ],
       if (savingAccounts.isNotEmpty) ...[
         if (expenseCategories.isNotEmpty) const SizedBox(height: 20),
@@ -709,7 +708,7 @@ class _PlanningPageState extends State<PlanningPage>
 
           Color progressColor = progress >= 1.0
               ? Colors.green
-              : Colors.blue;
+              : Theme.of(context).colorScheme.primary;
 
           return Card(
             elevation: 2,
@@ -780,7 +779,7 @@ class _PlanningPageState extends State<PlanningPage>
               ),
             ),
           );
-        }).toList(),
+        }),
       ]
     ],
   );

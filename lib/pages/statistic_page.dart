@@ -10,6 +10,7 @@ import '../controllers/budget_controller.dart';
 import '../utils/currency_input_formatter.dart';
 import '../models/expense.dart';
 import '../services/pdf_service.dart';
+import '../widgets/transaction_list_tile.dart';
 
 class StatisticPage extends StatefulWidget {
   const StatisticPage({super.key});
@@ -104,10 +105,10 @@ class _StatisticPageState extends State<StatisticPage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        
         title: const Text(
           "Statistik & Budget",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
@@ -282,38 +283,54 @@ class _StatisticPageState extends State<StatisticPage> {
                               ...top.map((entry) {
                                 final pct = maxVal > 0 ? entry.value / maxVal : 0.0;
                                 final cat = categoryController.expenseCategories.where((c) => c.name == entry.key).firstOrNull;
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          if (cat?.iconCodePoint != null)
-                                            Padding(
-                                              padding: const EdgeInsets.only(right: 6),
-                                              child: Icon(IconData(cat!.iconCodePoint!, fontFamily: cat.iconFontFamily), size: 14, color: Colors.red.shade600),
+                                final catExpenses = onlyExpenses.where((e) => e.category == entry.key).toList();
+                                
+                                return Theme(
+                                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                                  child: ExpansionTile(
+                                    tilePadding: EdgeInsets.zero,
+                                    childrenPadding: EdgeInsets.zero,
+                                    title: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            if (cat?.iconCodePoint != null)
+                                              Padding(
+                                                padding: const EdgeInsets.only(right: 6),
+                                                child: Icon(IconData(cat!.iconCodePoint!, fontFamily: cat.iconFontFamily), size: 14, color: Colors.red.shade600),
+                                              ),
+                                            Expanded(
+                                              child: Text(entry.key, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87), overflow: TextOverflow.ellipsis),
                                             ),
-                                          Expanded(
-                                            child: Text(entry.key, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
-                                          ),
-                                          Text(
-                                            CurrencyInputFormatter.formatCompact(entry.value),
-                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade700),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(4),
-                                        child: LinearProgressIndicator(
-                                          value: pct,
-                                          minHeight: 7,
-                                          backgroundColor: Colors.grey.shade200,
-                                          color: Colors.red.shade400,
+                                            Text(
+                                              CurrencyInputFormatter.formatCompact(entry.value),
+                                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade700),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 4),
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(4),
+                                          child: LinearProgressIndicator(
+                                            value: pct,
+                                            minHeight: 7,
+                                            backgroundColor: Colors.grey.shade200,
+                                            color: Colors.red.shade400,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    children: catExpenses.map((exp) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 4.0),
+                                        child: TransactionListTile(
+                                          exp: exp,
+                                          showDate: true,
+                                          compact: true,
+                                        ),
+                                      );
+                                    }).toList(),
                                   ),
                                 );
                               }),
@@ -334,8 +351,9 @@ class _StatisticPageState extends State<StatisticPage> {
                       for (final e in timeFilteredExpenses.where((e) => e.type == 'expense')) {
                         final cat = categoryController.expenseCategories.where((c) => c.name == e.category).firstOrNull;
                         final group = cat?.budgetGroup ?? 'needs';
-                        if (group == 'wants') realWants += e.amount;
-                        else if (group == 'savings') realSavings += e.amount;
+                        if (group == 'wants') {
+                          realWants += e.amount;
+                        } else if (group == 'savings') realSavings += e.amount;
                         else realNeeds += e.amount;
                       }
                       int pNeeds = ((realNeeds / incomeAmt) * 100).round();
@@ -401,68 +419,9 @@ class _StatisticPageState extends State<StatisticPage> {
                       itemCount: filteredExpenses.length,
                       itemBuilder: (context, index) {
                         final exp = filteredExpenses.reversed.toList()[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          elevation: 1,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            leading: CircleAvatar(
-                              backgroundColor: exp.type == "income"
-                                  ? Colors.green.shade50
-                                  : Colors.red.shade50,
-                              child: Builder(
-                                builder: (context) {
-                                  final catCtrl = context.read<CategoryController>();
-                                  final catList = exp.type == 'income' ? catCtrl.incomeCategories : catCtrl.expenseCategories;
-                                  final category = catList.where((c) => c.name == exp.category).firstOrNull;
-                                  
-                                  if (category?.iconCodePoint != null) {
-                                    return Icon(
-                                      IconData(category!.iconCodePoint!, fontFamily: category.iconFontFamily),
-                                      color: exp.type == "income"
-                                          ? Colors.green
-                                          : Colors.red,
-                                    );
-                                  }
-                                  
-                                  return Icon(
-                                    exp.type == "income"
-                                        ? Icons.arrow_downward_rounded
-                                        : Icons.arrow_upward_rounded,
-                                    color: exp.type == "income"
-                                        ? Colors.green
-                                        : Colors.red,
-                                  );
-                                }
-                              ),
-                            ),
-                            title: Text(
-                              exp.category,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            subtitle: Text(
-                              DateFormat('d MMM y', 'id_ID').format(exp.date),
-                            ),
-                            trailing: Text(
-                              CurrencyInputFormatter.format(exp.amount),
-                              style: TextStyle(
-                                color: exp.type == "income"
-                                    ? Colors.green
-                                    : Colors.red,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
+                        return TransactionListTile(
+                          exp: exp,
+                          showDate: true,
                         );
                       },
                     ),
@@ -547,6 +506,7 @@ class _StatisticPageState extends State<StatisticPage> {
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -556,40 +516,50 @@ class _StatisticPageState extends State<StatisticPage> {
                   size: 28,
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  isSafe ? "Bulan Ini Aman!" : "Ada Budget Yang Jebol!",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isSafe ? Colors.green.shade900 : Colors.red.shade900,
+                Expanded(
+                  child: Text(
+                    isSafe ? "Bulan Ini Aman!" : "Ada Budget Yang Jebol!",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isSafe ? Colors.green.shade900 : Colors.red.shade900,
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.5),
+                color: Colors.white.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Builder(builder: (ctx) {
                 final double currentSpent = currentCycleExpenses.where((e) => e.type == "expense").fold(0.0, (s, e) => s + e.amount);
                 final double diff = currentSpent - prevExpense;
                 final bool isMore = diff > 0;
-                if (prevExpense == 0) return const Text("Belum ada data bulan lalu", style: TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.bold));
+                if (prevExpense == 0) {
+                  return const Center(
+                    child: Text("Belum ada data bulan lalu", style: TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.bold)),
+                  );
+                }
                 final pct = (diff.abs() / prevExpense) * 100;
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(isMore ? Icons.trending_up : Icons.trending_down, size: 16, color: isMore ? Colors.red : Colors.green),
                     const SizedBox(width: 5),
-                    Text(
-                      "${isMore ? '+' : '-'}${pct.toStringAsFixed(1)}% pengeluaran dibanding lalu",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isMore ? Colors.red.shade700 : Colors.green.shade700,
+                    Flexible(
+                      child: Text(
+                        "${isMore ? '+' : '-'}${pct.toStringAsFixed(1)}% pengeluaran dibanding lalu",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isMore ? Colors.red.shade700 : Colors.green.shade700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -600,20 +570,29 @@ class _StatisticPageState extends State<StatisticPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildSummaryStat(
-                  "Aman",
-                  underLimitCount.toString(),
-                  Colors.green,
+                Expanded(
+                  flex: 1,
+                  child: _buildSummaryStat(
+                    "Aman",
+                    underLimitCount.toString(),
+                    Colors.green,
+                  ),
                 ),
-                _buildSummaryStat(
-                  "Jebol",
-                  overLimitCount.toString(),
-                  Colors.red,
+                Expanded(
+                  flex: 1,
+                  child: _buildSummaryStat(
+                    "Jebol",
+                    overLimitCount.toString(),
+                    Colors.red,
+                  ),
                 ),
-                _buildSummaryStat(
-                  "Total Limit",
-                  CurrencyInputFormatter.format(totalLimit),
-                  Colors.blueGrey,
+                Expanded(
+                  flex: 2,
+                  child: _buildSummaryStat(
+                    "Total Limit",
+                    CurrencyInputFormatter.format(totalLimit),
+                    Colors.blueGrey,
+                  ),
                 ),
               ],
             ),
@@ -643,6 +622,7 @@ class _StatisticPageState extends State<StatisticPage> {
             fontWeight: FontWeight.bold,
             color: color,
           ),
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
@@ -681,6 +661,7 @@ class _StatisticPageState extends State<StatisticPage> {
             ),
             const SizedBox(height: 12),
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
@@ -689,19 +670,26 @@ class _StatisticPageState extends State<StatisticPage> {
               child: Builder(builder: (ctx) {
                 final double diff = expense - prevExpense;
                 final bool isMore = diff > 0;
-                if (prevExpense == 0) return const Text("Belum ada data bulan lalu", style: TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.bold));
+                if (prevExpense == 0) {
+                  return const Center(
+                    child: Text("Belum ada data bulan lalu", style: TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.bold)),
+                  );
+                }
                 final pct = (diff.abs() / prevExpense) * 100;
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(isMore ? Icons.trending_up : Icons.trending_down, size: 16, color: isMore ? Colors.red : Colors.green),
                     const SizedBox(width: 5),
-                    Text(
-                      "${isMore ? '+' : '-'}${pct.toStringAsFixed(1)}% pengeluaran dibanding lalu",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isMore ? Colors.red.shade700 : Colors.green.shade700,
+                    Flexible(
+                      child: Text(
+                        "${isMore ? '+' : '-'}${pct.toStringAsFixed(1)}% pengeluaran dibanding lalu",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isMore ? Colors.red.shade700 : Colors.green.shade700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -712,47 +700,53 @@ class _StatisticPageState extends State<StatisticPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Pemasukan",
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Pemasukan",
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      CurrencyInputFormatter.format(income),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                      const SizedBox(height: 4),
+                      Text(
+                        CurrencyInputFormatter.format(income),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text(
-                      "Pengeluaran",
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text(
+                        "Pengeluaran",
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      CurrencyInputFormatter.format(expense),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                      const SizedBox(height: 4),
+                      Text(
+                        CurrencyInputFormatter.format(expense),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -788,11 +782,14 @@ class _StatisticPageState extends State<StatisticPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Budget: $category",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    "Budget: $category",
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (limit == 0)
@@ -810,6 +807,8 @@ class _StatisticPageState extends State<StatisticPage> {
             Text(
               "${CurrencyInputFormatter.format(spent)} / ${limit == 0 ? "-" : CurrencyInputFormatter.format(limit)}",
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
             ),
             const SizedBox(height: 15),
             if (limit > 0) ...[
@@ -889,7 +888,7 @@ class _StatisticPageState extends State<StatisticPage> {
                       value: (idealPct / 100).clamp(0.0, 1.0),
                       minHeight: 6,
                       backgroundColor: Colors.grey.shade200,
-                      color: color.withValues(alpha: 0.3),
+                      color: color.withOpacity(0.3),
                     ),
                   ),
                   ClipRRect(

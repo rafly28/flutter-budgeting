@@ -29,10 +29,10 @@ class SettingsPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        
         title: const Text(
           "Pengaturan",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       body: SingleChildScrollView(
@@ -143,7 +143,7 @@ class SettingsPage extends StatelessWidget {
                           title: const Text("Mode Saldo: Reset Tiap Gajian"),
                           subtitle: const Text("Aktifkan jika ingin saldo di-reset jadi 0 tiap tanggal gajian."),
                           value: resetBalance,
-                          activeColor: Theme.of(context).colorScheme.primary,
+                          activeThumbColor: Theme.of(context).colorScheme.primary,
                           onChanged: (val) {
                             userController.toggleResetBalance(val);
                           },
@@ -157,7 +157,7 @@ class SettingsPage extends StatelessWidget {
                           title: const Text("Metode Anggaran 50-30-20"),
                           subtitle: const Text("Bagi pos belanja & tabungan jadi Kebutuhan (50%), Keinginan (30%), dan Tabungan (20%)."),
                           value: userController.budgetingMode == 'pocket_50_30_20',
-                          activeColor: Theme.of(context).colorScheme.primary,
+                          activeThumbColor: Theme.of(context).colorScheme.primary,
                           onChanged: (val) {
                             userController.setBudgetingMode(val ? 'pocket_50_30_20' : 'standard');
                           },
@@ -398,7 +398,7 @@ class SettingsPage extends StatelessWidget {
                 Navigator.pop(context);
               }
             },
-            child: const Text("Simpan", style: TextStyle(color: Colors.white)),
+            child: const Text("Simpan", ),
           ),
         ],
       ),
@@ -504,7 +504,7 @@ class SettingsPage extends StatelessWidget {
                         return ListTile(
                           title: Text(
                             catName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Text(
                             limit > 0
@@ -605,7 +605,7 @@ class SettingsPage extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.3),
+                  color: color.withOpacity(0.3),
                   blurRadius: 5,
                   offset: const Offset(0, 2),
                 )

@@ -8,9 +8,8 @@ import 'package:toastification/toastification.dart';
 
 import '../controllers/expense_controller.dart';
 import '../controllers/plan_controller.dart';
-import '../controllers/category_controller.dart';
 import '../models/expense.dart';
-import '../utils/currency_input_formatter.dart';
+import '../widgets/transaction_list_tile.dart';
 import 'add_expense_page.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -43,10 +42,10 @@ class _HistoryPageState extends State<HistoryPage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        
         title: const Text(
           'Riwayat Transaksi',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       body: Column(
@@ -121,12 +120,12 @@ class _HistoryPageState extends State<HistoryPage> {
 
                 // Tampilan untuk "Hari Ini" (Today)
                 todayDecoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade200, width: 1.5),
+                  border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3), width: 1.5),
                 ),
                 todayTextStyle: TextStyle(
-                  color: Colors.blue.shade800,
+                  color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
 
@@ -227,104 +226,7 @@ class _HistoryPageState extends State<HistoryPage> {
                           );
                           return true;
                         },
-                        child: Card(
-                          elevation: 1,
-                          margin: const EdgeInsets.symmetric(vertical: 6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            leading: CircleAvatar(
-                              radius: 25,
-                              backgroundColor: exp.type == "transfer"
-                                  ? Colors.blue.shade50
-                                  : (exp.type == "income"
-                                        ? Colors.green.shade50
-                                        : Colors.red.shade50),
-                              child: Builder(
-                                builder: (context) {
-                                  final catCtrl = context.read<CategoryController>();
-                                  final catList = exp.type == 'income' ? catCtrl.incomeCategories : catCtrl.expenseCategories;
-                                  final category = catList.where((c) => c.name == exp.category).firstOrNull;
-
-                                  if (category?.iconCodePoint != null) {
-                                    return Icon(
-                                      IconData(category!.iconCodePoint!, fontFamily: category.iconFontFamily),
-                                      color: exp.type == "transfer"
-                                          ? Colors.blue
-                                          : (exp.type == "income"
-                                                ? Colors.green
-                                                : Colors.red),
-                                    );
-                                  }
-
-                                  return Icon(
-                                    exp.type == "transfer"
-                                        ? Icons.sync_alt
-                                        : (exp.type == "income"
-                                              ? Icons.arrow_downward
-                                              : Icons.arrow_upward),
-                                    color: exp.type == "transfer"
-                                        ? Colors.blue
-                                        : (exp.type == "income"
-                                              ? Colors.green
-                                              : Colors.red),
-                                  );
-                                }
-                              ),
-                            ),
-                            title: Text(
-                              exp.note != null && exp.note!.isNotEmpty ? exp.note! : exp.category,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${exp.category} - ${(exp.note != null && exp.note!.isNotEmpty) ? exp.note! : '-'} - ${exp.source}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: Text(
-                              CurrencyInputFormatter.format(exp.amount),
-                              style: TextStyle(
-                                color: exp.type == "transfer"
-                                    ? Colors.blue
-                                    : (exp.type == "income"
-                                          ? Colors.green
-                                          : Colors.red),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                            // 👇 FITUR EDIT SAAT DI-KLIK
-                            onTap: () {
-                              if (exp.debtId != null) {
-                                toastification.show(
-                                  context: context,
-                                  title: const Text(
-                                    "Kelola transaksi ini dari menu Hutang & Piutang.",
-                                  ),
-                                  type: ToastificationType.info,
-                                  style: ToastificationStyle.flat,
-                                  autoCloseDuration: const Duration(seconds: 3),
-                                );
-                                return;
-                              }
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      AddExpensePage(expenseToEdit: exp),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                        child: TransactionListTile(exp: exp),
                       ).animate().fadeIn(delay: (100 * (index < 5 ? index : 5)).ms).slideX(begin: 0.1);
                     },
                   ),
@@ -338,7 +240,7 @@ class _HistoryPageState extends State<HistoryPage> {
         icon: const Icon(FluentIcons.add_24_regular, color: Colors.white),
         label: const Text(
           "Catat Susulan",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         onPressed: () {
           Navigator.push(
