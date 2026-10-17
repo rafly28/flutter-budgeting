@@ -14,6 +14,7 @@ import '../models/expense.dart';
 import '../widgets/finance_summary_card.dart'; // Jika masih dipakai, biarkan
 import '../utils/currency_input_formatter.dart';
 import '../widgets/transaction_list_tile.dart';
+import '../utils/payday_cycle.dart';
 import 'history_page.dart';
 import 'add_expense_page.dart';
 import 'settings_page.dart';
@@ -36,25 +37,23 @@ class DashboardPage extends StatelessWidget {
     final now = DateTime.now();
 
     // 🎯 LOGIKA SALDO BERDASARKAN SIKLUS GAJIAN (Bukan 1 Bulan Kalender)
-    DateTime currentCycleStart = (now.day >= payday)
-        ? DateTime(now.year, now.month, payday)
-        : DateTime(now.year, now.month - 1, payday);
-
-    DateTime currentCycleEnd = (now.day >= payday)
-        ? DateTime(now.year, now.month + 1, payday - 1)
-        : DateTime(now.year, now.month, payday - 1);
+    final cycle = PaydayCycle.of(now, payday);
 
     // Ambil data dalam siklus saat ini
     final cycleExpenses = expenseController.getExpensesByDateRange(
-      currentCycleStart,
-      currentCycleEnd,
+      cycle.start,
+      cycle.end,
     );
 
     double transferOut = cycleExpenses
         .where((e) => e.type == 'transfer' && e.source == 'Budget Utama')
         .fold(0.0, (s, e) => s + e.amount);
     double transferIn = cycleExpenses
-        .where((e) => e.type == 'transfer' && e.note != null && e.note!.contains("ke Budget Utama"))
+        .where(
+          (e) =>
+              e.type == 'transfer' &&
+              expenseController.transferDestinationOf(e) == 'Budget Utama',
+        )
         .fold(0.0, (s, e) => s + e.amount);
 
     final totalIncome = cycleExpenses
@@ -65,9 +64,10 @@ class DashboardPage extends StatelessWidget {
         .where((e) => e.type == "expense" && e.source == 'Budget Utama')
         .fold(0.0, (sum, e) => sum + e.amount) + transferOut;
         
-    final balance = userController.resetBalanceOnPayday
-        ? totalIncome - totalExpense
-        : expenseController.balance;
+    final balance = expenseController.balanceFor(
+      ExpenseController.mainAccountName,
+      at: now,
+    );
 
     // 🎯 TRANSAKSI KHUSUS HARI INI
     final todayExpenses = expenseController.expenses
@@ -159,10 +159,18 @@ class DashboardPage extends StatelessWidget {
               double realNeeds = 0;
               double realWants = 0;
               double realSavings = 0;
+              // Transaksi yang kategorinya sudah dihapus/rename dihitung
+              // terpisah, bukan dumped ke "needs" supaya rasio 50-30-20
+              // tidak diam-diam jadi salah.
+              double unclassified = 0;
               for (final e in cycleExpenses.where((e) => e.type == 'expense')) {
                 final catList = categoryController.expenseCategories;
                 final cat = catList.where((c) => c.name == e.category).firstOrNull;
-                final group = cat?.budgetGroup ?? 'needs';
+                if (cat == null) {
+                  unclassified += e.amount;
+                  continue;
+                }
+                final group = cat.budgetGroup;
                 if (group == 'wants') {
                   realWants += e.amount;
                 } else if (group == 'savings') realSavings += e.amount;
@@ -192,6 +200,36 @@ class DashboardPage extends StatelessWidget {
                         _build5030Row('Keinginan 30%', realWants, targetWants, Colors.orange.shade600),
                         const SizedBox(height: 10),
                         _build5030Row('Tabungan  20%', realSavings, targetSavings, Colors.green.shade700),
+                        if (unclassified > 0) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 16,
+                                  color: Colors.orange.shade800,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${CurrencyInputFormatter.format(unclassified)} belum terkategori — '
+                                    'di luar perhitungan 50-30-20.',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.orange.shade900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -319,15 +357,18 @@ class DashboardPage extends StatelessWidget {
                           ),
                         ),
                         confirmDismiss: (_) async {
+                          String? failure;
                           final removed = await expenseController.removeExpense(
                             exp,
+                            onFailure: (reason) => failure = reason,
                           );
                           if (!context.mounted) return false;
                           if (!removed) {
                             toastification.show(
                               context: context,
-                              title: const Text(
-                                "Akun transaksi tidak ditemukan. Transaksi belum dihapus.",
+                              title: Text(
+                                failure ??
+                                    "Transaksi belum dihapus.",
                               ),
                               type: ToastificationType.error,
                               style: ToastificationStyle.flat,

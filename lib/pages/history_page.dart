@@ -196,15 +196,18 @@ class _HistoryPageState extends State<HistoryPage> {
                           ),
                         ),
                         confirmDismiss: (_) async {
+                          String? failure;
                           final removed = await expenseController.removeExpense(
                             exp,
+                            onFailure: (reason) => failure = reason,
                           );
                           if (!context.mounted) return false;
                           if (!removed) {
                             toastification.show(
                               context: context,
-                              title: const Text(
-                                "Akun transaksi tidak ditemukan. Transaksi belum dihapus.",
+                              title: Text(
+                                failure ??
+                                    "Transaksi belum dihapus.",
                               ),
                               type: ToastificationType.error,
                               style: ToastificationStyle.flat,

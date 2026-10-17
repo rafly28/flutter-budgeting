@@ -25,13 +25,16 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
       source: fields[5] == null ? 'Budget Utama' : fields[5] as String,
       planId: fields[6] as String?,
       debtId: fields[7] as String?,
+      transferDestination: fields[8] as String?,
+      investmentPrices:
+          fields[9] == null ? {} : (fields[9] as Map).cast<String, double>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Expense obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.amount)
       ..writeByte(1)
@@ -47,7 +50,11 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
       ..writeByte(6)
       ..write(obj.planId)
       ..writeByte(7)
-      ..write(obj.debtId);
+      ..write(obj.debtId)
+      ..writeByte(8)
+      ..write(obj.transferDestination)
+      ..writeByte(9)
+      ..write(obj.investmentPrices);
   }
 
   @override

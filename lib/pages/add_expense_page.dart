@@ -9,10 +9,13 @@ import '../controllers/budget_controller.dart';
 import '../controllers/saving_controller.dart';
 import '../controllers/plan_controller.dart';
 import '../controllers/debt_controller.dart';
+import '../controllers/user_controller.dart';
 import '../models/expense.dart';
 import '../models/plan_item.dart';
 import '../models/debt.dart';
+import '../models/saving_account.dart';
 import '../utils/currency_input_formatter.dart';
+import '../utils/payday_cycle.dart';
 
 class AddExpensePage extends StatefulWidget {
   final DateTime? fixedDate;
@@ -34,6 +37,11 @@ class _AddExpensePageState extends State<AddExpensePage> {
   String _selectedType = 'expense';
   String _debtType = 'piutang';
   String? _selectedCategory;
+
+  /// True kalau kategori asli transaksi sudah tidak ada (kategori dihapus
+  /// atau di-rename). Kategori tidak diganti diam-diam; pengguna memilih
+  /// sendiri supaya transaksi tidak salah filed.
+  bool _isOriginalCategoryMissing = false;
   String _selectedSource = 'Budget Utama';
   String _selectedDestination = 'Budget Utama';
 
@@ -123,8 +131,18 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
     if (categories.isNotEmpty) {
       setState(() {
-        if ((widget.expenseToEdit == null && widget.planToPay == null) ||
-            !categories.any((c) => c.name == _selectedCategory)) {
+        final isMissing = !categories.any(
+          (c) => c.name == _selectedCategory,
+        );
+        // Kategori lama yang sudah dihapus/rename tidak boleh diam-diam
+        // pindah ke kategori pertama — pemakai harus melihat danmemilih
+        // sendiri supaya transaksi tidak salah filed.
+        if (widget.expenseToEdit != null && isMissing) {
+          _isOriginalCategoryMissing = true;
+          return;
+        }
+        if (widget.expenseToEdit == null && widget.planToPay == null ||
+            isMissing) {
           _selectedCategory = categories.first.name;
         }
       });
@@ -135,6 +153,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
   Widget build(BuildContext context) {
     final catController = context.watch<CategoryController>();
     final savingController = context.watch<SavingController>();
+    final expenseController = context.watch<ExpenseController>();
 
     final categories = _selectedType == 'expense'
         ? catController.expenseCategories
@@ -151,13 +170,18 @@ class _AddExpensePageState extends State<AddExpensePage> {
       _selectedSource = accountOptions.first;
     }
     
-    final double sourceBalance = _selectedSource == 'Budget Utama' 
-        ? context.watch<ExpenseController>().balance 
-        : (savingController.savings.where((s) => s.name == _selectedSource).firstOrNull?.balance ?? 0.0);
+    // Akun investasi menampilkan nilai pasar, karena itu yang benar-benar
+    // tersedia saat ditarik.
+    double balanceOf(String accountName) => accountName == 'Budget Utama'
+        ? expenseController.balanceFor('Budget Utama', at: _selectedDate)
+        : (savingController.savings
+                  .where((s) => s.name == accountName)
+                  .firstOrNull
+                  ?.marketValue ??
+              0.0);
 
-    final double destBalance = _selectedDestination == 'Budget Utama' 
-        ? context.watch<ExpenseController>().balance 
-        : (savingController.savings.where((s) => s.name == _selectedDestination).firstOrNull?.balance ?? 0.0);
+    final double sourceBalance = balanceOf(_selectedSource);
+    final double destBalance = balanceOf(_selectedDestination);
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -393,28 +417,63 @@ class _AddExpensePageState extends State<AddExpensePage> {
                           decoration: InputDecoration(
                             isDense: true, // 👈 Membuat dropdown lebih compact
                             filled: true,
-                            fillColor: Colors.grey.shade50,
+                            fillColor: _isOriginalCategoryMissing
+                                ? Colors.amber.shade50
+                                : Colors.grey.shade50,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(15),
                               borderSide: BorderSide.none,
                             ),
                           ),
-                          items: categories
-                              .map(
-                                (c) => DropdownMenuItem(
-                                  value: c.name,
-                                  child: Text(
-                                    c.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                          items: [
+                            // Kategori lama yang sudah hilang tetap
+                            // ditampilkan supaya pengguna tahu asal-usulnya,
+                            // tapi tidak bisa dipilih lagi.
+                            if (_isOriginalCategoryMissing &&
+                                _selectedCategory != null &&
+                                !categories.any(
+                                  (c) => c.name == _selectedCategory,
+                                ))
+                              DropdownMenuItem(
+                                value: _selectedCategory,
+                                enabled: false,
+                                child: Text(
+                                  '⚠ ${_selectedCategory} (tidak ada lagi)',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange,
                                   ),
                                 ),
-                              )
-                              .toList(),
-                          onChanged: (val) =>
-                              setState(() => _selectedCategory = val),
+                              ),
+                            ...categories.map(
+                              (c) => DropdownMenuItem(
+                                value: c.name,
+                                child: Text(
+                                  c.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          onChanged: (val) => setState(() {
+                            _selectedCategory = val;
+                            _isOriginalCategoryMissing = false;
+                          }),
                         ),
+                        if (_isOriginalCategoryMissing)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              'Kategori asli transaksi ini sudah tidak ada. '
+                              'Pilih kategori baru agar tidak salah report.',
+                              style: TextStyle(
+                                color: Colors.orange.shade800,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
                         const SizedBox(height: 15), // 👈 Dirapatkan
                       ],
 
@@ -516,6 +575,12 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
+                              if (_selectedType == 'transfer')
+                                _InvestmentPreview(
+                                  source: _selectedSource,
+                                  destination: _selectedDestination,
+                                  amountController: _amountController,
+                                ),
                             ],
                           ),
                         ),
@@ -683,15 +748,17 @@ class _AddExpensePageState extends State<AddExpensePage> {
     );
   }
 
+  /// Nominal dari field input, sudah dibersihkan dari pemisah ribuan.
+  double _parseAmount() {
+    final clean = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    return double.tryParse(clean) ?? 0.0;
+  }
+
   Future<void> _handleSave() async {
     if (_amountController.text.isEmpty) return;
     if (_selectedType != 'debt' && _selectedCategory == null) return;
 
-    final String cleanAmount = _amountController.text.replaceAll(
-      RegExp(r'[^0-9]'),
-      '',
-    );
-    final double amount = double.tryParse(cleanAmount) ?? 0.0;
+    final double amount = _parseAmount();
     if (amount <= 0) return;
 
     if (_selectedType == 'debt') {
@@ -713,7 +780,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
     // Validasi saldo
     if (_selectedType == 'transfer' || _selectedType == 'expense') {
       final expenseController = context.read<ExpenseController>();
-      final sourceBal = expenseController.balanceFor(_selectedSource);
+      final sourceBal = expenseController.balanceFor(_selectedSource, at: _selectedDate);
       final effectiveBal = _balanceAfterRevertingOld(
         _selectedSource,
         sourceBal,
@@ -734,14 +801,17 @@ class _AddExpensePageState extends State<AddExpensePage> {
     if (_selectedType == 'expense' && _selectedSource == 'Budget Utama') {
       final budgetController = context.read<BudgetController>();
       final expenseController = context.read<ExpenseController>();
+      final userController = context.read<UserController>();
       double limit = budgetController.getBudgetLimit(_selectedCategory!);
 
       if (limit > 0) {
-        final currentMonthExpenses = expenseController.getExpensesByMonth(
-          _selectedDate.year,
-          _selectedDate.month,
+        final payday = userController.payday;
+        final cycle = PaydayCycle.of(_selectedDate, payday);
+        final cycleExpenses = expenseController.getExpensesByDateRange(
+          cycle.start,
+          cycle.end,
         );
-        double alreadySpent = currentMonthExpenses
+        double alreadySpent = cycleExpenses
             .where(
               (e) =>
                   e.category == _selectedCategory &&
@@ -810,6 +880,11 @@ class _AddExpensePageState extends State<AddExpensePage> {
     if (_selectedType == 'transfer') {
       finalNote = "Dari $_selectedSource ke $_selectedDestination. $finalNote";
     }
+    // Tujuan transfer disimpan sebagai data, bukan cuma di dalam note, supaya
+    // nama rekening yang mengandung titik tetap bisa dibaca.
+    final String? transferDestination = _selectedType == 'transfer'
+        ? _selectedDestination
+        : null;
 
     if (widget.expenseToEdit != null) {
       final oldExp = widget.expenseToEdit!;
@@ -822,6 +897,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
         source: _selectedSource,
         planId: oldExp.planId,
         debtId: oldExp.debtId,
+        transferDestination: transferDestination,
       );
       final updated = await expenseCtrl.updateExpense(
         oldExp,
@@ -829,7 +905,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
       );
       if (!mounted) return;
       if (!updated) {
-        _showSaveError();
+        _showSaveError(expenseCtrl.lastFailureReason);
         return;
       }
 
@@ -849,11 +925,12 @@ class _AddExpensePageState extends State<AddExpensePage> {
         type: _selectedType,
         source: _selectedSource,
         planId: widget.planToPay?.id,
+        transferDestination: transferDestination,
       );
       final added = await expenseCtrl.addExpense(expense);
       if (!mounted) return;
       if (!added) {
-        _showSaveError();
+        _showSaveError(expenseCtrl.lastFailureReason);
         return;
       }
       
@@ -862,8 +939,15 @@ class _AddExpensePageState extends State<AddExpensePage> {
         final planCtrl = context.read<PlanController>();
         final plan = widget.planToPay!;
         plan.isPaid = true;
-        plan.save();
-        planCtrl.updatePlanByKey(plan.key, plan);
+        // key bisa null kalau box-nya sudah diganti (mis. setelah restore).
+        // Menulis dengan key null akan membuat plan tersimpan di key tak
+        // bernama, jadi dilewati saja — transaksinya sudah tercatat.
+        if (plan.key != null) {
+          plan.save();
+          planCtrl.updatePlanByKey(plan.key, plan);
+        } else {
+          planCtrl.refresh();
+        }
       }
       
       toastification.show(
@@ -908,15 +992,15 @@ class _AddExpensePageState extends State<AddExpensePage> {
     return parts.length > 1 ? parts[1] : null;
   }
 
-  void _showSaveError() {
+  void _showSaveError([String? reason]) {
+    final fallback =
+        'Transaksi gagal disimpan karena akun terkait tidak ditemukan.';
     toastification.show(
       context: context,
-      title: const Text(
-        'Transaksi gagal disimpan karena akun terkait tidak ditemukan.',
-      ),
+      title: Text(reason ?? fallback),
       type: ToastificationType.error,
       style: ToastificationStyle.flat,
-      autoCloseDuration: const Duration(seconds: 3),
+      autoCloseDuration: const Duration(seconds: 4),
     );
   }
 
@@ -934,7 +1018,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
     final expenseController = context.read<ExpenseController>();
     if (_debtType == 'piutang' &&
-        amount > expenseController.balanceFor(_selectedSource)) {
+        amount > expenseController.balanceFor(_selectedSource, at: _selectedDate)) {
       toastification.show(
         context: context,
         title: Text('Saldo $_selectedSource tidak mencukupi.'),
@@ -980,4 +1064,142 @@ class _AddExpensePageState extends State<AddExpensePage> {
     );
     Navigator.pop(context, true);
   }
+}
+
+/// Pratinjau konversi rupiah ke unit untuk transfer yang menyentuh aset
+/// investasi.
+///
+/// Menampilkan harga yang benar-benar dipakai: harga jual toko saat membeli,
+/// harga buyback saat menjual. Tanpa ini pengguna tidak tahu berapa gram
+/// yang akan ditambahkan atau mengurangi saldonya.
+class _InvestmentPreview extends StatelessWidget {
+  final String source;
+  final String destination;
+  final TextEditingController amountController;
+
+  const _InvestmentPreview({
+    required this.source,
+    required this.destination,
+    required this.amountController,
+  });
+
+  double get _amount {
+    final clean = amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    return double.tryParse(clean) ?? 0.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Nominal dipratinjau ulang tiap ketikan, jadi user melihat jumlah unit
+    // yang akan ditambahkan atau berkurang sebelum menekan simpan.
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: amountController,
+      builder: (context, _, __) => _buildPreview(context, _amount),
+    );
+  }
+
+  Widget _buildPreview(BuildContext context, double amount) {
+    final savingController = context.watch<SavingController>();
+
+    SavingAccount? incoming;
+    SavingAccount? outgoing;
+    if (source != 'Budget Utama') {
+      final account = _find(savingController, source);
+      if (account != null && account.isInvestment) outgoing = account;
+    }
+    if (destination != 'Budget Utama') {
+      final account = _find(savingController, destination);
+      if (account != null && account.isInvestment) incoming = account;
+    }
+    if (incoming == null && outgoing == null) return const SizedBox.shrink();
+
+    final target = incoming ?? outgoing!;
+    final isBuying = incoming != null;
+    final price = savingController.conversionPriceFor(
+      target,
+      incoming: isBuying,
+    );
+    final theme = Theme.of(context);
+
+    if (price == null || price <= 0) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 14, color: Colors.orange),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                'Harga ${target.name} belum tersedia. Refresh harga di '
+                'halaman Tabungan sebelum transfer.',
+                style: const TextStyle(
+                  color: Colors.orange,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final units = amount / price;
+    final priceLabel = isBuying ? 'harga jual' : 'harga buyback';
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isBuying
+            ? Colors.green.withValues(alpha: 0.08)
+            : Colors.orange.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: (isBuying ? Colors.green : Colors.orange).withValues(
+            alpha: 0.35,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isBuying ? Icons.add_circle : Icons.remove_circle,
+            size: 18,
+            color: isBuying ? Colors.green : Colors.orange,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+                amount <= 0
+                    ? '${isBuying ? 'Akan menambah' : 'Akan mengurangi'} '
+                          '${target.name}'
+                    : '${isBuying ? 'Menambah' : 'Mengurang'} '
+                          '${_formatUnits(units, target.effectiveUnitLabel)} '
+                          '${target.name} @ '
+                          '${CurrencyInputFormatter.format(price)}/$priceLabel',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  SavingAccount? _find(SavingController controller, String name) {
+    for (final account in controller.savings) {
+      if (account.name == name) return account;
+    }
+    return null;
+  }
+}
+
+/// "0,39 gram" — jumlah unit sesuai format Indonesia.
+String _formatUnits(double count, String unit) {
+  final formatted = NumberFormat('#,##0.###', 'id_ID').format(count);
+  return unit.isEmpty ? formatted : '$formatted $unit';
 }

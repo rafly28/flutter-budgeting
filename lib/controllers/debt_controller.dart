@@ -6,6 +6,15 @@ import '../models/expense.dart';
 import 'expense_controller.dart';
 
 class DebtController extends ChangeNotifier {
+  /// Beri tahupendengar bahwa data di luar controller berubah (mis. setelah
+  /// restore backup yang mengganti isi box). Dipanggil juga setelah add/remove
+  /// sinkron, jadi regenerate tampilan tanpa perlu rebuild manual.
+  void refresh() => notifyListeners();
+
+  /// Toleransi pembulatan untuk membandingkan sisa hutang. Tanpa ini,
+  /// cicilan 33,33 tiga kali terhadap 100 menyisakan 0,01 yang tidak bisa
+  /// dilunasi karena UI hanya menerima rupiah penuh.
+  static const moneyTolerance = ExpenseController.moneyTolerance;
   final Box<Debt> _box = Hive.box<Debt>('debtBox');
   final ExpenseController _expenseController;
   final Set<String> _busyDebtIds = <String>{};
@@ -91,7 +100,7 @@ class DebtController extends ChangeNotifier {
       }
 
       final remaining = storedDebt.amount - storedDebt.paidAmount;
-      if (amountToPay > remaining ||
+      if (amountToPay > remaining + moneyTolerance ||
           (storedDebt.type == 'hutang' &&
               !_expenseController.canAfford(accountName, amountToPay))) {
         return false;
@@ -106,10 +115,12 @@ class DebtController extends ChangeNotifier {
         final previousPaidAmount = storedDebt.paidAmount;
         final previousSettled = storedDebt.isSettled;
         final newPaidAmount = previousPaidAmount + amountToPay;
-        storedDebt.paidAmount = newPaidAmount >= storedDebt.amount
+        storedDebt.paidAmount = newPaidAmount >=
+                storedDebt.amount - moneyTolerance
             ? storedDebt.amount
             : newPaidAmount;
-        storedDebt.isSettled = storedDebt.paidAmount == storedDebt.amount;
+        storedDebt.isSettled =
+            storedDebt.paidAmount >= storedDebt.amount - moneyTolerance;
 
         try {
           await storedDebt.save();

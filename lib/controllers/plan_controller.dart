@@ -3,6 +3,11 @@ import 'package:hive/hive.dart';
 import '../models/plan_item.dart';
 
 class PlanController extends ChangeNotifier {
+
+  /// Beri tahupendengar bahwa data di luar controller berubah (mis. setelah
+  /// restore backup yang mengganti isi box). Dipanggil juga setelah add/remove
+  /// sinkron, jadi regenerate tampilan tanpa perlu rebuild manual.
+  void refresh() => notifyListeners();
   final Box<PlanItem> _box = Hive.box<PlanItem>('planBox');
 
   // Ambil semua plan (optional, biasanya filter per cycle/bulan)
@@ -79,6 +84,9 @@ class PlanController extends ChangeNotifier {
         isPaid: false, // Reset status bayar untuk bulan baru
         category: oldPlan.category,
         monthKey: currentMonthKey,
+        // planType harus ikut tersalin. Kalau tidak, rencana tabungan
+        // berubah jadi rencana pengeluaran dan progres targetnya reset tiap bulan.
+        planType: oldPlan.planType,
       );
       _box.add(newPlan);
     }

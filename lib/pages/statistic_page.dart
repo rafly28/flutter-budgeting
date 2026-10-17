@@ -348,9 +348,16 @@ class _StatisticPageState extends State<StatisticPage> {
                       final incomeAmt = timeFilteredExpenses.where((e) => e.type == 'income').fold(0.0, (s, e) => s + e.amount);
                       if (incomeAmt <= 0) return const SizedBox.shrink();
                       double realNeeds = 0, realWants = 0, realSavings = 0;
+                      // Kategori yang sudah hilang tidak dihitung ke salah
+                      // satu bucket, tapi dilaporkan terpisah.
+                      double unclassified = 0;
                       for (final e in timeFilteredExpenses.where((e) => e.type == 'expense')) {
                         final cat = categoryController.expenseCategories.where((c) => c.name == e.category).firstOrNull;
-                        final group = cat?.budgetGroup ?? 'needs';
+                        if (cat == null) {
+                          unclassified += e.amount;
+                          continue;
+                        }
+                        final group = cat.budgetGroup;
                         if (group == 'wants') {
                           realWants += e.amount;
                         } else if (group == 'savings') realSavings += e.amount;
@@ -376,6 +383,29 @@ class _StatisticPageState extends State<StatisticPage> {
                               _buildMacroRow('Keinginan', 30, pWants, Colors.orange.shade600),
                               const SizedBox(height: 8),
                               _buildMacroRow('Tabungan', 20, pSavings, Colors.green.shade700),
+                              if (unclassified > 0) ...[
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      size: 16,
+                                      color: Colors.orange.shade800,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        '${CurrencyInputFormatter.format(unclassified)} belum terkategori, '
+                                        'tidak masuk hitungan rasio di atas.',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.orange.shade900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ),
                         ),

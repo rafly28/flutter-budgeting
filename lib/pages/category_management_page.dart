@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:toastification/toastification.dart';
 import '../controllers/category_controller.dart';
 import '../models/transaction_category.dart';
 
@@ -9,6 +10,69 @@ const List<IconData> _availableIcons = [
   Icons.phone_android, Icons.pets, Icons.sports_esports, Icons.work,
   Icons.account_balance, Icons.attach_money, Icons.credit_card, Icons.monetization_on,
 ];
+
+/// Opsi grup budget untuk metode 50-30-20.
+const List<({String value, String label})> _budgetGroupOptions = [
+  (value: 'needs', label: 'Kebutuhan'),
+  (value: 'wants', label: 'Keinginan'),
+  (value: 'savings', label: 'Tabungan'),
+];
+
+/// Menampilkan pesan error singkat ke pengguna.
+void _showError(BuildContext context, String message) {
+  toastification.show(
+    context: context,
+    title: Text(message),
+    type: ToastificationType.error,
+    style: ToastificationStyle.flat,
+    autoCloseDuration: const Duration(seconds: 3),
+  );
+}
+
+/// Widget kecil untuk memilih grup budget (needs / wants / savings).
+///
+/// Tidak dipakai untuk kategori pemasukan, karena 50-30-20 hanya menghitung
+/// pengeluaran.
+class _BudgetGroupField extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  const _BudgetGroupField({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Grup Budget (50-30-20)",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: _budgetGroupOptions.map((option) {
+            final selected = value == option.value;
+            return ChoiceChip(
+              label: Text(option.label),
+              selected: selected,
+              onSelected: (_) => onChanged(option.value),
+              selectedColor: Theme.of(
+                context,
+              ).colorScheme.primary.withOpacity(0.15),
+              labelStyle: TextStyle(
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                color: selected
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey.shade700,
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
 
 class CategoryManagementPage extends StatelessWidget {
   const CategoryManagementPage({super.key});
@@ -76,6 +140,7 @@ class CategoryManagementPage extends StatelessWidget {
   void _showCategoryDialog(BuildContext context) {
     final nameController = TextEditingController();
     String selectedType = 'expense';
+    String selectedBudgetGroup = 'needs';
     IconData selectedIcon = _availableIcons.first;
 
     showDialog(
@@ -150,6 +215,14 @@ class CategoryManagementPage extends StatelessWidget {
                     );
                   }).toList(),
                 ),
+                if (selectedType == 'expense') ...[
+                  const SizedBox(height: 15),
+                  _BudgetGroupField(
+                    value: selectedBudgetGroup,
+                    onChanged: (value) =>
+                        setState(() => selectedBudgetGroup = value),
+                  ),
+                ],
               ],
             ),
             actions: [
@@ -167,15 +240,26 @@ class CategoryManagementPage extends StatelessWidget {
                   ),
                 ),
                 onPressed: () {
-                  if (nameController.text.isNotEmpty) {
-                    context.read<CategoryController>().addCategory(
-                      nameController.text.trim(),
-                      selectedType,
-                      iconCodePoint: selectedIcon.codePoint,
-                      iconFontFamily: selectedIcon.fontFamily,
-                    );
-                    Navigator.pop(context);
+                  final name = nameController.text.trim();
+                  final error = context
+                      .read<CategoryController>()
+                      .validateName(name);
+                  if (error != null) {
+                    _showError(context, error);
+                    return;
                   }
+                  final added = context.read<CategoryController>().addCategory(
+                    name,
+                    selectedType,
+                    iconCodePoint: selectedIcon.codePoint,
+                    iconFontFamily: selectedIcon.fontFamily,
+                    budgetGroup: selectedBudgetGroup,
+                  );
+                  if (!added) {
+                    _showError(context, 'Kategori gagal disimpan.');
+                    return;
+                  }
+                  Navigator.pop(context);
                 },
                 child: const Text('Simpan'),
               ),
@@ -238,12 +322,25 @@ class _CategoryList extends StatelessWidget {
               backgroundColor: type == 'income'
                   ? Colors.green.shade50
                   : Colors.red.shade50,
-              child: Icon(
-                type == 'income'
-                    ? Icons.arrow_downward_rounded
-                    : Icons.arrow_upward_rounded,
-                color: type == 'income' ? Colors.green : Colors.red,
-              ),
+              child: category.iconCodePoint != null &&
+                      category.iconFontFamily != null
+                  ? Icon(
+                      IconData(
+                        category.iconCodePoint!,
+                        fontFamily: category.iconFontFamily,
+                      ),
+                      color: category.type == 'income'
+                          ? Colors.green
+                          : Colors.red,
+                    )
+                  : Icon(
+                      category.type == 'income'
+                          ? Icons.arrow_downward_rounded
+                          : Icons.arrow_upward_rounded,
+                      color: category.type == 'income'
+                          ? Colors.green
+                          : Colors.red,
+                    ),
             ),
             title: Text(
               category.name,
@@ -270,6 +367,7 @@ class _CategoryList extends StatelessWidget {
 
   void _showEditDialog(BuildContext context, TransactionCategory category) {
     final nameController = TextEditingController(text: category.name);
+    String selectedBudgetGroup = category.budgetGroup;
     IconData selectedIcon = category.iconCodePoint != null && category.iconFontFamily != null
         ? IconData(category.iconCodePoint!, fontFamily: category.iconFontFamily)
         : _availableIcons.first;
@@ -323,6 +421,14 @@ class _CategoryList extends StatelessWidget {
                     );
                   }).toList(),
                 ),
+                if (category.type == 'expense') ...[
+                  const SizedBox(height: 15),
+                  _BudgetGroupField(
+                    value: selectedBudgetGroup,
+                    onChanged: (value) =>
+                        setState(() => selectedBudgetGroup = value),
+                  ),
+                ],
               ],
             ),
             actions: [
@@ -336,16 +442,31 @@ class _CategoryList extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: () {
-                  if (nameController.text.isNotEmpty) {
-                    context.read<CategoryController>().updateCategory(
-                      category,
-                      nameController.text.trim(),
-                      iconCodePoint: selectedIcon.codePoint,
-                      iconFontFamily: selectedIcon.fontFamily,
-                    );
-                    Navigator.pop(context);
+                onPressed: () async {
+                  final controller = context.read<CategoryController>();
+                  final error = controller.validateName(
+                    nameController.text,
+                    ignoring: category,
+                  );
+                  if (error != null) {
+                    _showError(context, error);
+                    return;
                   }
+                  final saved = await controller.updateCategory(
+                    category,
+                    nameController.text,
+                    iconCodePoint: selectedIcon.codePoint,
+                    iconFontFamily: selectedIcon.fontFamily,
+                    budgetGroup: category.type == 'expense'
+                        ? selectedBudgetGroup
+                        : category.budgetGroup,
+                  );
+                  if (!context.mounted) return;
+                  if (!saved) {
+                    _showError(context, 'Kategori gagal disimpan.');
+                    return;
+                  }
+                  if (context.mounted) Navigator.pop(context);
                 },
                 child: const Text('Simpan'),
               ),
@@ -362,8 +483,25 @@ class _CategoryList extends StatelessWidget {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Hapus Kategori?'),
-        content: Text(
-          'Apakah Anda yakin ingin menghapus kategori "${category.name}"?',
+        content: Builder(
+          builder: (dialogContext) {
+            final controller = context.read<CategoryController>();
+            final references = controller.referenceCount(category.name);
+            final hasLimit = controller.hasBudgetLimit(category.name);
+            if (references == 0) {
+              return Text(
+                'Kategori "${category.name}" belum dipakai transaksi atau '
+                'rencana apa pun dan akan dihapus'
+                '${hasLimit ? ' (limit budget ikut dihapus)' : ''}.',
+              );
+            }
+            return Text(
+              'Kategori "${category.name}" masih dipakai $references catatan '
+              '(transaksi atau rencana). Hapus kategori dengan paksa akan '
+              'membuat catatan itu kehilangan kategori. Rename kategori lebih '
+              'aman.',
+            );
+          },
         ),
         actions: [
           TextButton(
@@ -378,9 +516,19 @@ class _CategoryList extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            onPressed: () {
-              context.read<CategoryController>().deleteCategory(category);
+            onPressed: () async {
+              final deleted = await context
+                  .read<CategoryController>()
+                  .deleteCategory(category);
+              if (!context.mounted) return;
               Navigator.pop(context);
+              if (!deleted) {
+                _showError(
+                  context,
+                  'Kategori masih dipakai catatan lain, jadi tidak dihapus. '
+                  'Rename kategori sebagai gantinya.',
+                );
+              }
             },
             child: const Text('Hapus'),
           ),

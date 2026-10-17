@@ -28,13 +28,16 @@ class SavingAccountAdapter extends TypeAdapter<SavingAccount> {
       avgBuyPrice: fields[8] == null ? 0.0 : fields[8] as double,
       lastMarketPrice: fields[9] == null ? 0.0 : fields[9] as double,
       symbol: fields[10] == null ? '' : fields[10] as String,
+      unitLabel: fields[11] == null ? '' : fields[11] as String,
+      priceFetchedAt: fields[12] as DateTime?,
+      lastBuybackPrice: fields[13] == null ? 0.0 : fields[13] as double,
     );
   }
 
   @override
   void write(BinaryWriter writer, SavingAccount obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -56,7 +59,13 @@ class SavingAccountAdapter extends TypeAdapter<SavingAccount> {
       ..writeByte(9)
       ..write(obj.lastMarketPrice)
       ..writeByte(10)
-      ..write(obj.symbol);
+      ..write(obj.symbol)
+      ..writeByte(11)
+      ..write(obj.unitLabel)
+      ..writeByte(12)
+      ..write(obj.priceFetchedAt)
+      ..writeByte(13)
+      ..write(obj.lastBuybackPrice);
   }
 
   @override

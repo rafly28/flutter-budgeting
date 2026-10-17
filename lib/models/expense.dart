@@ -28,6 +28,21 @@ class Expense extends HiveObject {
   @HiveField(7)
   String? debtId;
 
+  /// Nama akun tujuan untuk transfer. Disimpan sebagai data (bukan diparse
+  /// dari [note]) supaya nama akun yang mengandung titik tetap aman.
+  /// Null untuk baris lama / bukan transfer.
+  @HiveField(8)
+  String? transferDestination;
+
+  /// Harga per unit yang benar-benar dipakai saat transaksi ini mengubah
+  /// jumlah unit sebuah akun investasi (nama akun → harga per unit).
+  ///
+  /// Disimpan supaya pembatalan / edit bisa membalik perubahan unit secara
+  /// persis, walau harga pasar sudah berubah sejak transaksi dibuat. Baris
+  /// lama dan transaksi non-investasi punya peta kosong.
+  @HiveField(9, defaultValue: {})
+  Map<String, double> investmentPrices;
+
   Expense({
     required this.amount,
     required this.category,
@@ -37,5 +52,7 @@ class Expense extends HiveObject {
     this.source = 'Budget Utama',
     this.planId,
     this.debtId,
+    this.transferDestination,
+    this.investmentPrices = const {},
   });
 }

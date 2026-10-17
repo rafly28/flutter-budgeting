@@ -5,6 +5,11 @@ import '../models/user_settings.dart';
 import '../services/notification_service.dart';
 
 class UserController extends ChangeNotifier {
+
+  /// Beri tahupendengar bahwa data di luar controller berubah (mis. setelah
+  /// restore backup yang mengganti isi box). Dipanggil juga setelah add/remove
+  /// sinkron, jadi regenerate tampilan tanpa perlu rebuild manual.
+  void refresh() => notifyListeners();
   final Box<UserProfile> _userBox = Hive.box<UserProfile>('userBox');
   final Box<UserSettings> _settingsBox = Hive.box<UserSettings>(
     'userSettingsBox',

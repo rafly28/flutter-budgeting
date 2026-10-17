@@ -83,11 +83,13 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SavingController()),
-        ChangeNotifierProvider(
-          create: (context) =>
-              ExpenseController(context.read<SavingController>()),
-        ),
         ChangeNotifierProvider(create: (_) => UserController()),
+        ChangeNotifierProvider(
+          create: (context) => ExpenseController(
+            context.read<SavingController>(),
+            context.read<UserController>(),
+          ),
+        ),
         ChangeNotifierProvider(create: (_) => CategoryController()),
         ChangeNotifierProvider(create: (_) => BudgetController()),
         ChangeNotifierProvider(create: (_) => PlanController()),

@@ -13,6 +13,166 @@ import '../widgets/transaction_list_tile.dart';
 import 'add_expense_page.dart';
 import '../controllers/user_controller.dart';
 
+/// Chip EMVdigital untuk kartu, meniru kartu ATM.
+class _EmvChip extends StatelessWidget {
+  const _EmvChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 30,
+      height: 23,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(5),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFD9C48A), Color(0xFFB99B4E), Color(0xFFE8D9A8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: CustomPaint(painter: _EmvChipPainter()),
+    );
+  }
+}
+
+/// Garis chip EMV. Warnanya netral supaya kontras di semua gradien kartu.
+class _EmvChipPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF7A6633).withOpacity(0.55)
+      ..strokeWidth = 0.9
+      ..style = PaintingStyle.stroke;
+
+    final inset = size.width * 0.18;
+    canvas.drawLine(
+      Offset(size.width / 2, 0),
+      Offset(size.width / 2, size.height),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(0, size.height / 2),
+      Offset(size.width, size.height / 2),
+      paint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          inset,
+          size.height * 0.22,
+          size.width - inset * 2,
+          size.height * 0.56,
+        ),
+        const Radius.circular(2),
+      ),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Tag tipe aset (LOGAM MULIA / KRIPTO / SAHAM) di kartu.
+///
+/// Memakai putih transparan supaya terbaca di kelimagradien kartu yang
+/// dipilih berdasarkan posisi, bukan tipe aset.
+class _AssetBadge extends StatelessWidget {
+  final String assetType;
+  const _AssetBadge({required this.assetType});
+
+  static const Map<String, String> _labels = {
+    'gold': 'LOGAM MULIA',
+    'crypto': 'KRIPTO',
+    'stock': 'SAHAM',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final label = _labels[assetType];
+    if (label == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.22),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: Colors.white.withOpacity(0.35)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.6,
+        ),
+      ),
+    );
+  }
+}
+
+/// Pemecahan "Tunai / Investasi" di bawah total tabungan.
+class _TotalPart extends StatelessWidget {
+  final String label;
+  final double amount;
+  final bool hidden;
+
+  const _TotalPart({
+    required this.label,
+    required this.amount,
+    required this.hidden,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = Theme.of(context).colorScheme.onPrimary;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$label ',
+          style: TextStyle(
+            color: foreground.withOpacity(0.7),
+            fontSize: 11,
+          ),
+        ),
+        Text(
+          hidden ? '••••••' : CurrencyInputFormatter.format(amount),
+          style: TextStyle(
+            color: foreground.withOpacity(0.95),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Harga dianggap basi setelah 6 jam supaya angka offline tidak
+/// dipertontonkan seolah-olah itu harga saat ini.
+bool _isPriceStale(SavingAccount account) {
+  final fetchedAt = account.priceFetchedAt;
+  if (fetchedAt == null) return true;
+  return DateTime.now().difference(fetchedAt) > const Duration(hours: 6);
+}
+
+/// "2 jam lalu", "3 hari lalu".
+String _priceAgeLabel(DateTime fetchedAt) {
+  final elapsed = DateTime.now().difference(fetchedAt);
+  if (elapsed.inMinutes < 60) return '${elapsed.inMinutes} menit lalu';
+  if (elapsed.inHours < 24) return '${elapsed.inHours} jam lalu';
+  return '${elapsed.inDays} hari lalu';
+}
+
+/// "5 gram", "0,5 lot" — koma desimal sesuai format Indonesia.
+String _formatUnits(double count, String unit) {
+  final formatted = NumberFormat('#,##0.##', 'id_ID').format(count);
+  final suffix = unit.isEmpty ? '' : ' $unit';
+  return '$formatted$suffix';
+}
+
 class SavingsPage extends StatefulWidget {
   const SavingsPage({super.key});
 
@@ -45,6 +205,8 @@ class _SavingsPageState extends State<SavingsPage> {
       _currentCardIndex = 0;
     }
     final totalBalance = savingController.totalSavingsBalance;
+    final cashPart = savingController.cashBalance;
+    final investmentPart = savingController.investmentBalance;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100, // Tema Dashboard
@@ -114,6 +276,45 @@ class _SavingsPageState extends State<SavingsPage> {
                             letterSpacing: -1,
                           ),
                         ),
+                        // Pemecahan kas vs investasi supaya pergerakan harga
+                        // aset tidak terlihat seperti saldo yang berubah
+                        // sendiri.
+                        if (cashPart > 0 || investmentPart > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (cashPart > 0)
+                                  _TotalPart(
+                                    label: 'Tunai',
+                                    amount: cashPart,
+                                    hidden: userController.isBalanceHidden,
+                                  ),
+                                if (cashPart > 0 && investmentPart > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    child: Text(
+                                      '•',
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary
+                                            .withOpacity(0.6),
+                                      ),
+                                    ),
+                                  ),
+                                if (investmentPart > 0)
+                                  _TotalPart(
+                                    label: 'Investasi',
+                                    amount: investmentPart,
+                                    hidden: userController.isBalanceHidden,
+                                  ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -216,26 +417,60 @@ class _SavingsPageState extends State<SavingsPage> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            account.name,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 1,
+                                          // Baris atas: chip EMV + badge tipe
+                                          // aset. Untuk akun tunai baris ini
+                                          // tidak dirender sama sekali.
+                                          if (account.isInvestment)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 10,
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  const _EmvChip(),
+                                                  const SizedBox(width: 10),
+                                                  _AssetBadge(
+                                                    assetType:
+                                                        account.assetType,
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                          Text(
-                                            account.bankName,
-                                            style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontStyle: FontStyle.italic,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment
+                                                    .spaceBetween,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  account.name,
+                                                  overflow: TextOverflow
+                                                      .ellipsis,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 18,
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                    letterSpacing: 1,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (account.bankName.isNotEmpty)
+                                                Text(
+                                                  account.bankName,
+                                                  style: const TextStyle(
+                                                    color: Colors.white70,
+                                                    fontStyle:
+                                                        FontStyle.italic,
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                  ),
+                                                ),
+                                            ],
                                           ),
                                         ],
                                       ),
@@ -243,11 +478,32 @@ class _SavingsPageState extends State<SavingsPage> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
+                                          // Berat/volume yang dimiliki —
+                                          // konteks di atas nilai.
+                                          if (account.isInvestment &&
+                                              account.unitCount > 0)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 4,
+                                              ),
+                                              child: Text(
+                                                _formatUnits(
+                                                  account.unitCount,
+                                                  account.effectiveUnitLabel,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 12,
+                                                  fontWeight:
+                                                      FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
                                           Text(
                                             userController.isBalanceHidden
                                                 ? 'Rp ••••••'
                                                 : CurrencyInputFormatter.format(
-                                                    account.balance,
+                                                    account.marketValue,
                                                   ),
                                             style: const TextStyle(
                                               color: Colors.white,
@@ -256,20 +512,83 @@ class _SavingsPageState extends State<SavingsPage> {
                                               letterSpacing: -0.5,
                                             ),
                                           ),
-                                          if (account.assetType != 'cash' &&
-                                              account.avgBuyPrice > 0)
+// Harga pasar per unit + peringatan harga basi. Ini detail,
+                                          // ditaruh di bawah nilai.
+                                          if (account.hasKnownPrice)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 4.0,
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+Text(
+                                                    userController
+                                                            .isBalanceHidden
+                                                        ? '@ Rp ••••••/${account.effectiveUnitLabel}'
+                                                        : '@ ${CurrencyInputFormatter.format(account.lastMarketPrice)}/${account.effectiveUnitLabel}',
+                                                    style: const TextStyle(
+                                                      color: Colors.white70,
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  if (_isPriceStale(account))
+                                                    Padding(
+                                                      padding: const EdgeInsets.only(
+                                                        top: 2,
+                                                      ),
+                                                      child: Text(
+                                                        'Harga terakhir: ${_priceAgeLabel(account.priceFetchedAt!)}',
+                                                        style: const TextStyle(
+                                                          color: Colors.amberAccent,
+                                                          fontSize: 10,
+                                                          fontStyle:
+                                                              FontStyle.italic,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                          // Harga buyback — yang benar-benar
+                                          // diterima kalau aset dijual lagi.
+                                          if (account.lastBuybackPrice > 0 &&
+                                              account.lastBuybackPrice <
+                                                  account.lastMarketPrice)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 2.0,
+                                              ),
+                                              child: Text(
+                                                userController
+                                                        .isBalanceHidden
+                                                    ? 'Buyback Rp ••••••/${account.effectiveUnitLabel}'
+                                                    : 'Buyback @ ${CurrencyInputFormatter.format(account.lastBuybackPrice)}/${account.effectiveUnitLabel}',
+                                                style: const TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 11,
+                                                  fontWeight:
+                                                      FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                          if (account.avgBuyPrice > 0 &&
+                                              account.unitCount > 0)
                                             Builder(
                                               builder: (ctx) {
                                                 final totalCost =
                                                     account.unitCount *
                                                     account.avgBuyPrice;
                                                 final currentVal =
-                                                    account.balance;
+                                                    account.marketValue;
                                                 final pl = totalCost > 0
                                                     ? ((currentVal -
                                                               totalCost) /
-                                                          totalCost *
-                                                          100)
+                                                              totalCost *
+                                                              100)
                                                     : 0.0;
                                                 final isProfit = pl >= 0;
                                                 return Padding(
@@ -707,6 +1026,9 @@ class _SavingsPageState extends State<SavingsPage> {
             ).format(accountToEdit.avgBuyPrice.toInt())
           : '',
     );
+    final unitLabelCtrl = TextEditingController(
+      text: isEdit ? accountToEdit.unitLabel : '',
+    );
 
     showDialog(
       context: context,
@@ -778,9 +1100,12 @@ class _SavingsPageState extends State<SavingsPage> {
                   ] else ...[
                     TextField(
                       controller: symbolCtrl,
-                      decoration: const InputDecoration(
-                        labelText:
-                            'Simbol / Ticker (Cth: XAU, bitcoin, BBCA.JK)',
+                      decoration: InputDecoration(
+                        labelText: 'Simbol / Ticker (Cth: XAU, bitcoin, BBCA.JK)',
+                        helperText: assetType == 'gold'
+                            ? 'Opsional untuk emas — harga Antam diambil otomatis.'
+                            : 'Wajib untuk kripto dan saham.',
+                        helperMaxLines: 2,
                       ),
                     ),
                     TextField(
@@ -790,6 +1115,13 @@ class _SavingsPageState extends State<SavingsPage> {
                       ),
                       decoration: const InputDecoration(
                         labelText: 'Jumlah Unit (Cth: 5.5 Gram / Lot / Coin)',
+                      ),
+                    ),
+                    TextField(
+                      controller: unitLabelCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Satuan (Cth: gram, lot, koin)',
+                        helperText: 'Kosongkan untuk memakai satuan default.',
                       ),
                     ),
                     TextField(
@@ -830,7 +1162,7 @@ class _SavingsPageState extends State<SavingsPage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: () {
+                onPressed: () async {
                   if (nameCtrl.text.isNotEmpty) {
                     final String cleanAmount = balanceCtrl.text.replaceAll(
                       RegExp(r'[^0-9]'),
@@ -850,17 +1182,25 @@ class _SavingsPageState extends State<SavingsPage> {
                         ) ??
                         0.0;
 
-                    double calcBalance = assetType == 'cash'
-                        ? finalBalance
-                        : (unitCount * avgBuyPrice);
-                    if (isEdit &&
-                        assetType != 'cash' &&
-                        accountToEdit.lastMarketPrice > 0) {
-                      calcBalance = unitCount * accountToEdit.lastMarketPrice;
+                    double calcBalance;
+                    if (assetType == 'cash') {
+                      calcBalance = finalBalance;
+                    } else {
+                      final derived = unitCount * avgBuyPrice;
+                      // Mengubah akun tunai jadi aset tanpa mengisi unit atau
+                      // modal akan menurunkan saldo jadi 0. Kalau saldo
+                      // sebelumnya sudah ada, pertahankan sebagai modal yang
+                      // diinvestasikan.
+                      final previousBalance = isEdit
+                          ? accountToEdit.balance
+                          : 0.0;
+                      calcBalance = derived > 0 || previousBalance <= 0
+                          ? derived
+                          : previousBalance;
                     }
 
                     if (isEdit) {
-                      controller.updateSavingDetails(
+                      final saved = await controller.updateSavingDetails(
                         accountToEdit,
                         nameCtrl.text,
                         assetType == 'cash' ? bankCtrl.text : '',
@@ -871,9 +1211,19 @@ class _SavingsPageState extends State<SavingsPage> {
                         unitCount: unitCount,
                         avgBuyPrice: avgBuyPrice,
                         symbol: symbolCtrl.text.trim(),
+                        unitLabel: unitLabelCtrl.text.trim(),
                       );
+                      if (!saved) {
+                        if (context.mounted) {
+                          _showError(
+                            context,
+                            'Gagal menyimpan. Nama sudah dipakai.',
+                          );
+                        }
+                        return;
+                      }
                     } else {
-                      controller.addSavingAccount(
+                      final added = await controller.addSavingAccount(
                         nameCtrl.text,
                         calcBalance,
                         assetType == 'cash' ? bankCtrl.text : '',
@@ -883,10 +1233,21 @@ class _SavingsPageState extends State<SavingsPage> {
                         unitCount: unitCount,
                         avgBuyPrice: avgBuyPrice,
                         symbol: symbolCtrl.text.trim(),
+                        unitLabel: unitLabelCtrl.text.trim(),
                       );
+                      if (!added) {
+                        if (context.mounted) {
+                          _showError(
+                            context,
+                            'Gagal menyimpan. Nama sudah dipakai.',
+                          );
+                        }
+                        return;
+                      }
                     }
+                    if (!context.mounted) return;
                     Navigator.pop(context);
-                    controller.refreshMarketPrices();
+                    await controller.refreshMarketPrices();
                   }
                 },
                 child: const Text('Simpan'),
@@ -897,4 +1258,15 @@ class _SavingsPageState extends State<SavingsPage> {
       ),
     );
   }
+}
+
+/// Menampilkan pesan error singkat ke pengguna.
+void _showError(BuildContext context, String message) {
+  toastification.show(
+    context: context,
+    title: Text(message),
+    type: ToastificationType.error,
+    style: ToastificationStyle.flat,
+    autoCloseDuration: const Duration(seconds: 3),
+  );
 }

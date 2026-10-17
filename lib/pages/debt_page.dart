@@ -89,7 +89,8 @@ class _DebtList extends StatelessWidget {
         final progress = debt.amount > 0
             ? (debt.paidAmount / debt.amount).clamp(0.0, 1.0).toDouble()
             : 0.0;
-        final isCompleted = debt.isSettled || debt.paidAmount >= debt.amount;
+        final isCompleted = debt.isSettled ||
+            debt.paidAmount >= debt.amount - DebtController.moneyTolerance;
 
         return Card(
           elevation: 2,
@@ -324,9 +325,12 @@ class _DebtList extends StatelessWidget {
             selectedAccount = 'Budget Utama';
           }
 
-          final remaining = (debt.amount - debt.paidAmount)
-              .clamp(0.0, debt.amount)
-              .toDouble();
+          final rawRemaining = debt.amount - debt.paidAmount;
+          // Sisa di bawah toleransi dianggap 0 supaya tidak tampil "Sisa Rp 0"
+          // padahal cicilan terakhir masih bisa dilunasi.
+          final remaining = rawRemaining <= DebtController.moneyTolerance
+              ? 0.0
+              : rawRemaining.clamp(0.0, debt.amount).toDouble();
           final accountBalance = dialogBodyContext
               .watch<ExpenseController>()
               .balanceFor(selectedAccount);

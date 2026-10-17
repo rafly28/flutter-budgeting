@@ -14,9 +14,20 @@ class CurrencyInputFormatter extends TextInputFormatter {
       return newValue.copyWith(text: '');
     }
 
-    // buang semua tanda non-digit
+    // Buang semua non-digit. Teks tanpa digit sama sekali (mis. tempel huruf)
+    // harus jadi string kosong, bukan exception.
     final digitsOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    final number = int.parse(digitsOnly);
+    if (digitsOnly.isEmpty) {
+      return oldValue.copyWith(
+        text: '',
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    }
+
+    final number = int.tryParse(digitsOnly);
+    if (number == null) {
+      return oldValue;
+    }
 
     final newString = _formatter.format(number);
 

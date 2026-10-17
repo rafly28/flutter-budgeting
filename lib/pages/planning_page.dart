@@ -700,7 +700,12 @@ class _PlanningPageState extends State<PlanningPage>
               .fold(0.0, (s, e) => s + e.amount);
           
           final spent = cycleExpenses
-              .where((e) => e.type == "transfer" && e.note != null && e.note!.contains("ke ${cat.name}"))
+              .where(
+                (e) =>
+                    e.type == 'transfer' &&
+                    e.source != cat.name &&
+                    expenseController.transferDestinationOf(e) == cat.name,
+              )
               .fold(0.0, (s, e) => s + e.amount);
 
           double progress = target > 0 ? (spent / target) : 0.0;

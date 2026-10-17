@@ -7,6 +7,10 @@ import 'package:toastification/toastification.dart';
 import '../controllers/user_controller.dart';
 import '../controllers/category_controller.dart';
 import '../controllers/budget_controller.dart';
+import '../controllers/saving_controller.dart';
+import '../controllers/expense_controller.dart';
+import '../controllers/plan_controller.dart';
+import '../controllers/debt_controller.dart';
 import '../utils/currency_input_formatter.dart';
 import 'category_management_page.dart';
 import '../services/backup_service.dart';
@@ -303,11 +307,29 @@ class SettingsPage extends StatelessWidget {
                           title: const Text("Restore Data"),
                           subtitle: const Text("Impor data dari file backup"),
                           onTap: () async {
-                            bool success = await BackupService.importBackup();
+                            final success = await BackupService.importBackup();
+                            if (!context.mounted) return;
                             if (success) {
+                              // Restore mengganti seluruh isi box, jadi setiap
+                              // controller harus diberi tahu. Tanpa ini layar
+                              // masih menyajikan objek lama yang sudah tidak
+                              // ada di dalam Hive.
+                              for (final controller in <ChangeNotifier>[
+                                context.read<CategoryController>(),
+                                context.read<BudgetController>(),
+                                context.read<SavingController>(),
+                                context.read<ExpenseController>(),
+                                context.read<PlanController>(),
+                                context.read<DebtController>(),
+                                context.read<UserController>(),
+                              ]) {
+                                (controller as dynamic).refresh();
+                              }
                               toastification.show(
                                 context: context,
-                                title: const Text("✅ Restore Berhasil! Restart aplikasi."),
+                                title: const Text(
+                                  "✅ Restore Berhasil! Restart aplikasi.",
+                                ),
                                 type: ToastificationType.success,
                                 style: ToastificationStyle.flat,
                                 autoCloseDuration: const Duration(seconds: 3),
