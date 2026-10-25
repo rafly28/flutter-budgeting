@@ -48,3 +48,9 @@ app.*.map.json
 
 *.py
 FEATURE_ROADMAP.md
+
+# Worktrees
+.worktrees/
+
+# Superpowers scratch
+.superpowers/
