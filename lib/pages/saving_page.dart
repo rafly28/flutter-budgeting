@@ -10,107 +10,9 @@ import '../controllers/expense_controller.dart';
 import '../models/saving_account.dart';
 import '../utils/currency_input_formatter.dart';
 import '../widgets/transaction_list_tile.dart';
+import '../widgets/saving_card.dart';
 import 'add_expense_page.dart';
 import '../controllers/user_controller.dart';
-
-/// Chip EMVdigital untuk kartu, meniru kartu ATM.
-class _EmvChip extends StatelessWidget {
-  const _EmvChip();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 30,
-      height: 23,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(5),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFD9C48A), Color(0xFFB99B4E), Color(0xFFE8D9A8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: CustomPaint(painter: _EmvChipPainter()),
-    );
-  }
-}
-
-/// Garis chip EMV. Warnanya netral supaya kontras di semua gradien kartu.
-class _EmvChipPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF7A6633).withOpacity(0.55)
-      ..strokeWidth = 0.9
-      ..style = PaintingStyle.stroke;
-
-    final inset = size.width * 0.18;
-    canvas.drawLine(
-      Offset(size.width / 2, 0),
-      Offset(size.width / 2, size.height),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(0, size.height / 2),
-      Offset(size.width, size.height / 2),
-      paint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          inset,
-          size.height * 0.22,
-          size.width - inset * 2,
-          size.height * 0.56,
-        ),
-        const Radius.circular(2),
-      ),
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Tag tipe aset (LOGAM MULIA / KRIPTO / SAHAM) di kartu.
-///
-/// Memakai putih transparan supaya terbaca di kelimagradien kartu yang
-/// dipilih berdasarkan posisi, bukan tipe aset.
-class _AssetBadge extends StatelessWidget {
-  final String assetType;
-  const _AssetBadge({required this.assetType});
-
-  static const Map<String, String> _labels = {
-    'gold': 'LOGAM MULIA',
-    'crypto': 'KRIPTO',
-    'stock': 'SAHAM',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final label = _labels[assetType];
-    if (label == null) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.22),
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: Colors.white.withOpacity(0.35)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 9,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 0.6,
-        ),
-      ),
-    );
-  }
-}
 
 /// Pemecahan "Tunai / Investasi" di bawah total tabungan.
 class _TotalPart extends StatelessWidget {
@@ -132,10 +34,7 @@ class _TotalPart extends StatelessWidget {
       children: [
         Text(
           '$label ',
-          style: TextStyle(
-            color: foreground.withOpacity(0.7),
-            fontSize: 11,
-          ),
+          style: TextStyle(color: foreground.withOpacity(0.7), fontSize: 11),
         ),
         Text(
           hidden ? '••••••' : CurrencyInputFormatter.format(amount),
@@ -148,29 +47,6 @@ class _TotalPart extends StatelessWidget {
       ],
     );
   }
-}
-
-/// Harga dianggap basi setelah 6 jam supaya angka offline tidak
-/// dipertontonkan seolah-olah itu harga saat ini.
-bool _isPriceStale(SavingAccount account) {
-  final fetchedAt = account.priceFetchedAt;
-  if (fetchedAt == null) return true;
-  return DateTime.now().difference(fetchedAt) > const Duration(hours: 6);
-}
-
-/// "2 jam lalu", "3 hari lalu".
-String _priceAgeLabel(DateTime fetchedAt) {
-  final elapsed = DateTime.now().difference(fetchedAt);
-  if (elapsed.inMinutes < 60) return '${elapsed.inMinutes} menit lalu';
-  if (elapsed.inHours < 24) return '${elapsed.inHours} jam lalu';
-  return '${elapsed.inDays} hari lalu';
-}
-
-/// "5 gram", "0,5 lot" — koma desimal sesuai format Indonesia.
-String _formatUnits(double count, String unit) {
-  final formatted = NumberFormat('#,##0.##', 'id_ID').format(count);
-  final suffix = unit.isEmpty ? '' : ' $unit';
-  return '$formatted$suffix';
 }
 
 class SavingsPage extends StatefulWidget {
@@ -348,7 +224,7 @@ class _SavingsPageState extends State<SavingsPage> {
                     )
                   else ...[
                     SizedBox(
-                      height: 210, // Sedikit diperbesar agar proporsional
+                      height: 224,
                       child: PageView.builder(
                         controller: PageController(viewportFraction: 0.88),
                         itemCount: savings.length,
@@ -356,448 +232,22 @@ class _SavingsPageState extends State<SavingsPage> {
                             setState(() => _currentCardIndex = index),
                         itemBuilder: (context, index) {
                           final account = savings[index];
-                          bool isActive = _currentCardIndex == index;
-
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: isActive ? 0 : 15,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(
-                                25,
-                              ), // Sudut lebih halus
-                              gradient: LinearGradient(
-                                colors: _getCardColors(index),
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              boxShadow: isActive
-                                  ? [
-                                      BoxShadow(
-                                        color: _getCardColors(
-                                          index,
-                                        )[0].withOpacity(0.5),
-                                        blurRadius: 15,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ]
-                                  : [],
-                            ),
-                            child: Stack(
-                              children: [
-                                // Hiasan Glassmorphism
-                                Positioned(
-                                  right: -20,
-                                  top: -20,
-                                  child: CircleAvatar(
-                                    radius: 60,
-                                    backgroundColor: Colors.white.withOpacity(
-                                      0.1,
-                                    ),
+                          final isActive = _currentCardIndex == index;
+                          return SavingCard(
+                            account: account,
+                            isActive: isActive,
+                            isBalanceHidden: userController.isBalanceHidden,
+                            onAddFunds: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AddExpensePage(
+                                    savingDestination: account.name,
                                   ),
                                 ),
-                                Positioned(
-                                  right: 50,
-                                  bottom: -40,
-                                  child: CircleAvatar(
-                                    radius: 50,
-                                    backgroundColor: Colors.white.withOpacity(
-                                      0.1,
-                                    ),
-                                  ),
-                                ),
-
-                                Padding(
-                                  padding: const EdgeInsets.all(24),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          // Baris atas: chip EMV + badge tipe
-                                          // aset. Untuk akun tunai baris ini
-                                          // tidak dirender sama sekali.
-                                          if (account.isInvestment)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 10,
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  const _EmvChip(),
-                                                  const SizedBox(width: 10),
-                                                  _AssetBadge(
-                                                    assetType:
-                                                        account.assetType,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment
-                                                    .spaceBetween,
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  account.name,
-                                                  overflow: TextOverflow
-                                                      .ellipsis,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 18,
-                                                    fontWeight:
-                                                        FontWeight.bold,
-                                                    letterSpacing: 1,
-                                                  ),
-                                                ),
-                                              ),
-                                              if (account.bankName.isNotEmpty)
-                                                Text(
-                                                  account.bankName,
-                                                  style: const TextStyle(
-                                                    color: Colors.white70,
-                                                    fontStyle:
-                                                        FontStyle.italic,
-                                                    fontWeight:
-                                                        FontWeight.bold,
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          // Berat/volume yang dimiliki —
-                                          // konteks di atas nilai.
-                                          if (account.isInvestment &&
-                                              account.unitCount > 0)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 4,
-                                              ),
-                                              child: Text(
-                                                _formatUnits(
-                                                  account.unitCount,
-                                                  account.effectiveUnitLabel,
-                                                ),
-                                                style: const TextStyle(
-                                                  color: Colors.white70,
-                                                  fontSize: 12,
-                                                  fontWeight:
-                                                      FontWeight.w500,
-                                                ),
-                                              ),
-                                            ),
-                                          Text(
-                                            userController.isBalanceHidden
-                                                ? 'Rp ••••••'
-                                                : CurrencyInputFormatter.format(
-                                                    account.marketValue,
-                                                  ),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 28,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: -0.5,
-                                            ),
-                                          ),
-// Harga pasar per unit + peringatan harga basi. Ini detail,
-                                          // ditaruh di bawah nilai.
-                                          if (account.hasKnownPrice)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: 4.0,
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-Text(
-                                                    userController
-                                                            .isBalanceHidden
-                                                        ? '@ Rp ••••••/${account.effectiveUnitLabel}'
-                                                        : '@ ${CurrencyInputFormatter.format(account.lastMarketPrice)}/${account.effectiveUnitLabel}',
-                                                    style: const TextStyle(
-                                                      color: Colors.white70,
-                                                      fontSize: 11,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                  if (_isPriceStale(account))
-                                                    Padding(
-                                                      padding: const EdgeInsets.only(
-                                                        top: 2,
-                                                      ),
-                                                      child: Text(
-                                                        'Harga terakhir: ${_priceAgeLabel(account.priceFetchedAt!)}',
-                                                        style: const TextStyle(
-                                                          color: Colors.amberAccent,
-                                                          fontSize: 10,
-                                                          fontStyle:
-                                                              FontStyle.italic,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                          // Harga buyback — yang benar-benar
-                                          // diterima kalau aset dijual lagi.
-                                          if (account.lastBuybackPrice > 0 &&
-                                              account.lastBuybackPrice <
-                                                  account.lastMarketPrice)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: 2.0,
-                                              ),
-                                              child: Text(
-                                                userController
-                                                        .isBalanceHidden
-                                                    ? 'Buyback Rp ••••••/${account.effectiveUnitLabel}'
-                                                    : 'Buyback @ ${CurrencyInputFormatter.format(account.lastBuybackPrice)}/${account.effectiveUnitLabel}',
-                                                style: const TextStyle(
-                                                  color: Colors.white54,
-                                                  fontSize: 11,
-                                                  fontWeight:
-                                                      FontWeight.w500,
-                                                ),
-                                              ),
-                                            ),
-                                          if (account.avgBuyPrice > 0 &&
-                                              account.unitCount > 0)
-                                            Builder(
-                                              builder: (ctx) {
-                                                final totalCost =
-                                                    account.unitCount *
-                                                    account.avgBuyPrice;
-                                                final currentVal =
-                                                    account.marketValue;
-                                                final pl = totalCost > 0
-                                                    ? ((currentVal -
-                                                              totalCost) /
-                                                              totalCost *
-                                                              100)
-                                                    : 0.0;
-                                                final isProfit = pl >= 0;
-                                                return Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        top: 4.0,
-                                                      ),
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 2,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: isProfit
-                                                          ? Colors.greenAccent
-                                                                .withOpacity(
-                                                                  0.2,
-                                                                )
-                                                          : Colors.redAccent
-                                                                .withOpacity(
-                                                                  0.2,
-                                                                ),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            6,
-                                                          ),
-                                                    ),
-                                                    child: Text(
-                                                      '${isProfit ? '+' : ''}${userController.isBalanceHidden ? '••' : pl.toStringAsFixed(2)}%',
-                                                      style: TextStyle(
-                                                        color: isProfit
-                                                            ? Colors.greenAccent
-                                                            : Colors.redAccent,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 12,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                        ],
-                                      ),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                account
-                                                        .accountHolderName
-                                                        .isEmpty
-                                                    ? 'Atas Nama'
-                                                    : account.accountHolderName
-                                                          .toUpperCase(),
-                                                style: const TextStyle(
-                                                  color: Colors.white70,
-                                                  fontSize: 10,
-                                                  letterSpacing: 1,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                userController.isBalanceHidden
-                                                    ? '••••••••'
-                                                    : (account
-                                                              .accountNumber
-                                                              .isEmpty
-                                                          ? '**** **** ****'
-                                                          : account
-                                                                .accountNumber),
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 16,
-                                                  letterSpacing: 2,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          // Tombol Aksi Cepat (Nabung & Copy)
-                                          Row(
-                                            children: [
-                                              GestureDetector(
-                                                onTap: () {
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (_) =>
-                                                          AddExpensePage(
-                                                            savingDestination:
-                                                                account.name,
-                                                          ),
-                                                    ),
-                                                  );
-                                                },
-                                                child: Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 16,
-                                                        vertical: 8,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.white,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          10,
-                                                        ),
-                                                    boxShadow: [
-                                                      BoxShadow(
-                                                        color: Colors.black
-                                                            .withOpacity(0.1),
-                                                        blurRadius: 4,
-                                                        offset: const Offset(
-                                                          0,
-                                                          2,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  child: Text(
-                                                    "Nabung",
-                                                    style: TextStyle(
-                                                      color: _getCardColors(
-                                                        index,
-                                                      )[0],
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 10),
-                                              GestureDetector(
-                                                onTap: () {
-                                                  if (account
-                                                      .accountNumber
-                                                      .isNotEmpty) {
-                                                    String copyText = "";
-                                                    if (account
-                                                        .bankName
-                                                        .isNotEmpty) {
-                                                      copyText +=
-                                                          "Bank: ${account.bankName}\n";
-                                                    }
-                                                    copyText +=
-                                                        "No. Rekening: ${account.accountNumber}\n";
-                                                    if (account
-                                                        .accountHolderName
-                                                        .isNotEmpty) {
-                                                      copyText +=
-                                                          "Atas Nama: ${account.accountHolderName}";
-                                                    }
-
-                                                    Clipboard.setData(
-                                                      ClipboardData(
-                                                        text: copyText.trim(),
-                                                      ),
-                                                    );
-                                                    toastification.show(
-                                                      context: context,
-                                                      title: const Text(
-                                                        'Info Rekening Disalin',
-                                                      ),
-                                                      type: ToastificationType
-                                                          .success,
-                                                      style: ToastificationStyle
-                                                          .flat,
-                                                      autoCloseDuration:
-                                                          const Duration(
-                                                            seconds: 3,
-                                                          ),
-                                                    );
-                                                  }
-                                                },
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(
-                                                    8,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.white
-                                                        .withOpacity(0.2),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          10,
-                                                        ),
-                                                  ),
-                                                  child: const Icon(
-                                                    Icons.copy,
-                                                    color: Colors.white,
-                                                    size: 20,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                              );
+                            },
+                            onCopyAccount: () => _copyAccount(context, account),
                           );
                         },
                       ),
@@ -972,15 +422,25 @@ Text(
     );
   }
 
-  List<Color> _getCardColors(int index) {
-    final colors = [
-      [Colors.blue.shade900, Colors.blue.shade500],
-      [Colors.deepPurple.shade900, Colors.deepPurple.shade400],
-      [Colors.teal.shade900, Colors.teal.shade500],
-      [Colors.orange.shade900, Colors.orange.shade500],
-      [Colors.black87, Colors.grey.shade700], // Kartu Hitam Elegan
-    ];
-    return colors[index % colors.length];
+  Future<void> _copyAccount(BuildContext context, SavingAccount account) async {
+    if (account.accountNumber.isEmpty) return;
+    final buffer = StringBuffer();
+    if (account.bankName.isNotEmpty) {
+      buffer.writeln('Bank: ${account.bankName}');
+    }
+    buffer.writeln('No. Rekening: ${account.accountNumber}');
+    if (account.accountHolderName.isNotEmpty) {
+      buffer.write('Atas Nama: ${account.accountHolderName}');
+    }
+    await Clipboard.setData(ClipboardData(text: buffer.toString().trim()));
+    if (!context.mounted) return;
+    toastification.show(
+      context: context,
+      title: const Text('Info Rekening Disalin'),
+      type: ToastificationType.success,
+      style: ToastificationStyle.flat,
+      autoCloseDuration: const Duration(seconds: 3),
+    );
   }
 
   // Fungsi ShowDialog tetap sama seperti milik Anda sebelumnya, tidak perlu diubah logikanya
@@ -1101,7 +561,8 @@ Text(
                     TextField(
                       controller: symbolCtrl,
                       decoration: InputDecoration(
-                        labelText: 'Simbol / Ticker (Cth: XAU, bitcoin, BBCA.JK)',
+                        labelText:
+                            'Simbol / Ticker (Cth: XAU, bitcoin, BBCA.JK)',
                         helperText: assetType == 'gold'
                             ? 'Opsional untuk emas — harga Antam diambil otomatis.'
                             : 'Wajib untuk kripto dan saham.',
