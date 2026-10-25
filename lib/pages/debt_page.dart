@@ -9,6 +9,17 @@ import '../controllers/saving_controller.dart';
 import '../models/debt.dart';
 import '../utils/currency_input_formatter.dart';
 
+/// Akun yang dipakai saat pembayaran debt: akun asal/tujuan awal bila rute
+/// otomatis aktif, selain itu akun yang dipilih manual.
+@visibleForTesting
+String resolveDebtPayAccount({
+  required String? originAccount,
+  required bool autoToOrigin,
+  required String selectedAccount,
+}) {
+  return (autoToOrigin && originAccount != null) ? originAccount : selectedAccount;
+}
+
 class DebtPage extends StatelessWidget {
   const DebtPage({super.key});
 
@@ -310,6 +321,8 @@ class _DebtList extends StatelessWidget {
     final amountController = TextEditingController();
     var selectedAccount = 'Budget Utama';
     var isSaving = false;
+    final originAccount = ctrl.principalAccountOf(debt);
+    var autoToOrigin = originAccount != null;
 
     await showDialog<void>(
       context: context,
@@ -331,9 +344,14 @@ class _DebtList extends StatelessWidget {
           final remaining = rawRemaining <= DebtController.moneyTolerance
               ? 0.0
               : rawRemaining.clamp(0.0, debt.amount).toDouble();
+          final targetAccount = resolveDebtPayAccount(
+            originAccount: originAccount,
+            autoToOrigin: autoToOrigin,
+            selectedAccount: selectedAccount,
+          );
           final accountBalance = dialogBodyContext
               .watch<ExpenseController>()
-              .balanceFor(selectedAccount);
+              .balanceFor(targetAccount);
           final isOutgoing = debt.type == 'hutang';
           final accountLabel = isOutgoing
               ? 'Dari (Sumber Dana)'
@@ -368,46 +386,66 @@ class _DebtList extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 15),
-                  Text(
-                    accountLabel,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                  if (originAccount != null)
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: autoToOrigin,
+                      title: Text(
+                        isOutgoing
+                            ? 'Bayar dari akun tujuan awal ($originAccount)'
+                            : 'Terima ke sumber dana asal ($originAccount)',
+                      ),
+                      onChanged: isSaving
+                          ? null
+                          : (val) =>
+                                setDialogState(() => autoToOrigin = val ?? false),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey(selectedAccount),
-                    initialValue: selectedAccount,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
+                  if (originAccount == null || !autoToOrigin) ...[
+                    Text(
+                      accountLabel,
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
                       ),
                     ),
-                    items: accountOptions
-                        .map(
-                          (account) => DropdownMenuItem(
-                            value: account,
-                            child: Text(
-                              account,
-                              overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey(selectedAccount),
+                      initialValue: selectedAccount,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      items: accountOptions
+                          .map(
+                            (account) => DropdownMenuItem(
+                              value: account,
+                              child: Text(
+                                account,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: isSaving
-                        ? null
-                        : (account) {
-                            if (account != null) {
-                              setDialogState(() => selectedAccount = account);
-                            }
-                          },
-                  ),
+                          )
+                          .toList(),
+                      onChanged: isSaving
+                          ? null
+                          : (account) {
+                              if (account != null) {
+                                setDialogState(
+                                  () => selectedAccount = account,
+                                );
+                              }
+                            },
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
                     'Saldo: ${CurrencyInputFormatter.format(accountBalance)}',
@@ -458,7 +496,7 @@ class _DebtList extends StatelessWidget {
                         if (isOutgoing && amount > accountBalance) {
                           _showToast(
                             dialogContext,
-                            'Saldo $selectedAccount tidak mencukupi.',
+                            'Saldo $targetAccount tidak mencukupi.',
                           );
                           return;
                         }
@@ -467,7 +505,7 @@ class _DebtList extends StatelessWidget {
                         final saved = await ctrl.payDebt(
                           debt,
                           amount,
-                          selectedAccount,
+                          targetAccount,
                         );
                         if (!dialogContext.mounted) return;
 
