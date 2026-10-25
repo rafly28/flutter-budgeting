@@ -211,6 +211,16 @@ class DebtController extends ChangeNotifier {
     }
   }
 
+  String? principalAccountOf(Debt debt) {
+    final principalMatches = _expenseController.expenses
+        .where(
+          (expense) =>
+              expense.debtId == debt.id && _matchesPrincipal(expense, debt),
+        )
+        .toList();
+    return principalMatches.length == 1 ? principalMatches.single.source : null;
+  }
+
   bool _isValidDebt(Debt debt) {
     return (debt.type == 'hutang' || debt.type == 'piutang') &&
         debt.personName.trim().isNotEmpty &&
